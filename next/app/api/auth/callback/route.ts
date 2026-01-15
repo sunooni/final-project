@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
       maxAge: 86400 * 7, // 7 days
     });
 
-    return NextResponse.redirect(new URL('/?success=true', request.url));
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   } catch (error) {
     console.error('OAuth callback error:', error);
     return NextResponse.redirect(
