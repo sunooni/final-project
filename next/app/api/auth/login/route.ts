@@ -17,6 +17,8 @@ export async function GET() {
   authUrl.searchParams.set('client_id', clientId);
   authUrl.searchParams.set('redirect_uri', redirectUri);
   authUrl.searchParams.set('scope', 'login:email login:info');
+  // Force Yandex to show the consent / account selection screen every time
+  authUrl.searchParams.set('force_confirm', 'yes');
 
   return NextResponse.redirect(authUrl.toString());
 }
