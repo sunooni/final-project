@@ -29,6 +29,10 @@ export default function AuthButton() {
         const data = await response.json();
         if (data.authenticated) {
           setUser(data.user);
+          if (data.authenticated) {
+            setUser(data.user);
+            router.push('/'); // например, '/dashboard'
+          }
         }
       }
     } catch (error) {
