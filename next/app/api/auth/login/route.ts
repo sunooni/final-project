@@ -1,12 +1,12 @@
-import { NextResponse } from 'next/server';
-import { yandexConfig } from '@/config/yandex';
+import { NextResponse } from "next/server";
+import { yandexConfig } from "@/config/yandex";
 
 export async function GET() {
   const { clientId, redirectUri } = yandexConfig;
 
   if (!clientId) {
     return NextResponse.json(
-      { error: 'YANDEX_CLIENT_ID is not configured' },
+      { error: "YANDEX_CLIENT_ID is not configured" },
       { status: 500 }
     );
   }
@@ -22,4 +22,3 @@ export async function GET() {
 
   return NextResponse.redirect(authUrl.toString());
 }
-
