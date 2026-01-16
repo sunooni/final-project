@@ -49,8 +49,18 @@ export const TasteMap = () => {
               setLoading(false);
               return;
             }
-            const errorData = await response.json();
-            setError(errorData.error || "Ошибка загрузки данных");
+            
+            // Try to parse error response as JSON, fallback to status text
+            let errorMessage = "Ошибка загрузки данных";
+            try {
+              const errorData = await response.json();
+              errorMessage = errorData.error || errorMessage;
+            } catch (parseError) {
+              // If response is not JSON (e.g., 404 HTML page), use status text
+              errorMessage = `Ошибка ${response.status}: ${response.statusText || "Не удалось загрузить данные"}`;
+            }
+            
+            setError(errorMessage);
             setLoading(false);
             return;
           }
@@ -65,7 +75,7 @@ export const TasteMap = () => {
           }
         } catch (err) {
           console.error("Error fetching galaxy data:", err);
-          setError("Ошибка при загрузке данных");
+          setError(err instanceof Error ? err.message : "Ошибка при загрузке данных");
         } finally {
           setLoading(false);
         }

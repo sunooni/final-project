@@ -35,16 +35,20 @@ interface Genre {
   }>;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    console.log('Galaxy API route called');
     const username = await getLastfmUsername();
     
     if (!username) {
+      console.log('No username found, returning 401');
       return NextResponse.json(
         { error: 'Not authenticated with Last.fm' },
         { status: 401 }
       );
     }
+    
+    console.log(`Fetching galaxy data for user: ${username}`);
 
     // Get all loved tracks (fetch multiple pages)
     let allTracks: Track[] = [];

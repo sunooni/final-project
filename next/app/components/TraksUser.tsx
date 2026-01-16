@@ -195,20 +195,6 @@ export const TraksUser = () => {
                   transition={{ delay: index * 0.01 }}
                   className="flex items-center gap-4 p-4 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg hover:bg-white/10 transition-all"
                 >
-                  {track.image && track.image.length > 0 && (
-                    <img
-                      src={
-                        track.image.find((img) => img.size === "medium")?.[
-                          "#text"
-                        ] ||
-                        track.image[track.image.length - 1]["#text"] ||
-                        ""
-                      }
-                      alt={track.name}
-                      className="w-16 h-16 rounded object-cover"
-                    />
-                  )}
-
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium text-white truncate">
                       {track.name}
