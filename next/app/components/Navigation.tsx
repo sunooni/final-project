@@ -1,22 +1,32 @@
+'use client';
+
 import { motion } from 'framer-motion';
 import { Map, Calendar, TrendingUp, Users, Sparkles, LogOut } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 // import { useUserStore } from '@/app/stores/userStore';
 import { cn } from '@/app/lib/utils';
 
-interface NavigationProps {
-  activeTab: string;
-  onTabChange: (tab: string) => void;
-}
-
 const navItems = [
-  { id: 'map', label: 'Карта Вкуса', icon: Map },
-  { id: 'calendar', label: 'Эмоции', icon: Calendar },
-  { id: 'evolution', label: 'Эволюция', icon: TrendingUp },
-  { id: 'galaxy', label: 'Галактика', icon: Sparkles },
-  { id: 'social', label: 'Друзья', icon: Users },
+  { id: 'taste-map', label: 'Карта Вкуса', icon: Map, href: '/taste-map' },
+  { id: 'emotions', label: 'Эмоции', icon: Calendar, href: '/emotions' },
+  { id: 'evolution', label: 'Эволюция', icon: TrendingUp, href: '/evolution' },
+  { id: 'galaxy', label: 'Галактика', icon: Sparkles, href: '/galaxy' },
+  { id: 'friends', label: 'Друзья', icon: Users, href: '/friends' },
 ];
 
-export const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
+export const Navigation = () => {
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      router.push('/auth');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 //   const { user, logout } = useUserStore();
 
   return (
@@ -37,12 +47,12 @@ export const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
         <div className="flex items-center gap-1 bg-muted/50 rounded-xl p-1">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activeTab === item.id;
+            const isActive = pathname === item.href;
             
             return (
-              <button
+              <Link
                 key={item.id}
-                onClick={() => onTabChange(item.id)}
+                href={item.href}
                 className={cn(
                   "relative flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300",
                   isActive 
@@ -59,27 +69,18 @@ export const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                 )}
                 <Icon className="w-4 h-4 relative z-10" />
                 <span className="text-sm font-medium relative z-10 hidden md:inline">{item.label}</span>
-              </button>
+              </Link>
             );
           })}
         </div>
 
-        {/* <div className="flex items-center gap-4">
-          {user && (
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-nebula-purple to-nebula-pink flex items-center justify-center text-sm font-medium">
-                {user.name.charAt(0)}
-              </div>
-              <span className="text-sm text-muted-foreground hidden lg:inline">{user.name}</span>
-            </div>
-          )}
-          <button 
-            onClick={logout}
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div> */}
+        <button 
+          onClick={handleLogout}
+          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          title="Выйти"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
       </div>
     </motion.nav>
   );

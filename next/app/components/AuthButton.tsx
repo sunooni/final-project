@@ -29,10 +29,8 @@ export default function AuthButton() {
         const data = await response.json();
         if (data.authenticated) {
           setUser(data.user);
-          if (data.authenticated) {
-            setUser(data.user);
-            router.push('/'); // например, '/dashboard'
-          }
+          // Перенаправляем на дашборд после успешной авторизации
+          router.push('/taste-map');
         }
       }
     } catch (error) {
@@ -50,7 +48,7 @@ export default function AuthButton() {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
       setUser(null);
-      router.refresh();
+      router.push('/auth');
     } catch (error) {
       console.error('Logout error:', error);
     }

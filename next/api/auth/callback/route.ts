@@ -9,13 +9,13 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     return NextResponse.redirect(
-      new URL(`/?error=${encodeURIComponent(error)}`, request.url)
+      new URL(`/auth?error=${encodeURIComponent(error)}`, request.url)
     );
   }
 
   if (!code) {
     return NextResponse.redirect(
-      new URL('/?error=no_code', request.url)
+      new URL('/auth?error=no_code', request.url)
     );
   }
 
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       const errorData = await tokenResponse.text();
       console.error('Token exchange error:', errorData);
       return NextResponse.redirect(
-        new URL('/?error=token_exchange_failed', request.url)
+        new URL('/auth?error=token_exchange_failed', request.url)
       );
     }
 
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
 
     if (!userResponse.ok) {
       return NextResponse.redirect(
-        new URL('/?error=user_info_failed', request.url)
+        new URL('/auth?error=user_info_failed', request.url)
       );
     }
 
@@ -78,11 +78,11 @@ export async function GET(request: NextRequest) {
       maxAge: 86400 * 7, // 7 days
     });
 
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    return NextResponse.redirect(new URL('/taste-map', request.url));
   } catch (error) {
     console.error('OAuth callback error:', error);
     return NextResponse.redirect(
-      new URL('/?error=internal_error', request.url)
+      new URL('/auth?error=internal_error', request.url)
     );
   }
 }

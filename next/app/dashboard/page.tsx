@@ -1,10 +1,5 @@
-import { Dashboard } from "../components/Dashboard";
+import { redirect } from 'next/navigation';
 
 export default function DashboardPage() {
-  return (
-    <div className="min-h-screen bg-background relative">
-      <Dashboard />
-    </div>
-  );
+  redirect('/taste-map');
 }
-
