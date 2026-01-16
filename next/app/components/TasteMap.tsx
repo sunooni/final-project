@@ -83,6 +83,31 @@ export const TasteMap = () => {
     // Create gradient definitions
     const defs = svg.append('defs');
 
+    // Add stars background
+    const starsGroup = svg.append('g').attr('class', 'stars');
+    
+    // Generate random stars
+    const starCount = 200;
+    for (let i = 0; i < starCount; i++) {
+      const x = Math.random() * width;
+      const y = Math.random() * height;
+      const size = Math.random() * 2 + 0.5;
+      const opacity = Math.random() * 0.7 + 0.3;
+      
+      starsGroup
+        .append('circle')
+        .attr('cx', x)
+        .attr('cy', y)
+        .attr('r', size)
+        .attr('fill', 'white')
+        .attr('opacity', opacity)
+        .append('animate')
+        .attr('attributeName', 'opacity')
+        .attr('values', `${opacity};${opacity * 0.3};${opacity}`)
+        .attr('dur', `${Math.random() * 3 + 2}s`)
+        .attr('repeatCount', 'indefinite');
+    }
+
     // Glow filter
     const filter = defs
       .append('filter')
@@ -101,40 +126,43 @@ export const TasteMap = () => {
     feMerge.append('feMergeNode').attr('in', 'coloredBlur');
     feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
 
-    // Create nodes - genres as planets
+    // Create nodes - genres as planets (bigger)
     const genreNodes: Node[] = topGenres.slice(0, 8).map((g) => ({
       id: `genre-${g.name}`,
       name: g.name,
       type: 'genre' as const,
-      value: Math.sqrt(g.trackCount) * 8,
+      value: Math.sqrt(g.trackCount) * 12, // Large planets
       color: g.color || '#FFB3BA',
     }));
 
-    // Create artist nodes - top artists as satellites
+    // Create artist nodes - top artists as satellites (smaller)
     const artistNodes: Node[] = [];
     const links: Link[] = [];
+    const usedArtists = new Set<string>();
 
     topGenres.slice(0, 8).forEach((genre) => {
-      genre.artists.slice(0, 3).forEach((artist) => {
+      genre.artists.slice(0, 5).forEach((artist) => {
         const artistId = `artist-${artist.name}`;
         
-        // Check if artist already exists
-        if (!artistNodes.find(n => n.id === artistId)) {
+        // Each artist belongs to only one genre (planet)
+        if (!usedArtists.has(artistId)) {
           artistNodes.push({
             id: artistId,
             name: artist.name,
             type: 'artist' as const,
-            value: Math.sqrt(artist.trackCount) * 3,
+            value: Math.sqrt(artist.trackCount) * 2.5, // Smaller satellites
             color: genre.color || '#FFB3BA',
           });
-        }
 
-        // Create link between artist and genre
-        links.push({
-          source: artistId,
-          target: `genre-${genre.name}`,
-          value: 2,
-        });
+          // Create link between artist and genre
+          links.push({
+            source: artistId,
+            target: `genre-${genre.name}`,
+            value: 2,
+          });
+
+          usedArtists.add(artistId);
+        }
       });
     });
 
@@ -156,6 +184,25 @@ export const TasteMap = () => {
         'collision',
         d3.forceCollide().radius((d: any) => d.value + 10)
       );
+
+    // Add boundary force to keep nodes inside the container
+    const padding = 50;
+    simulation.on('tick', () => {
+      // Keep nodes within bounds
+      nodes.forEach((d: any) => {
+        const radius = d.value || 0;
+        d.x = Math.max(padding + radius, Math.min(width - padding - radius, d.x));
+        d.y = Math.max(padding + radius, Math.min(height - padding - radius, d.y));
+      });
+
+      link
+        .attr('x1', (d: any) => d.source.x)
+        .attr('y1', (d: any) => d.source.y)
+        .attr('x2', (d: any) => d.target.x)
+        .attr('y2', (d: any) => d.target.y);
+
+      nodeGroup.attr('transform', (d: any) => `translate(${d.x}, ${d.y})`);
+    });
 
     // Draw links
     const link = svg
@@ -211,17 +258,6 @@ export const TasteMap = () => {
       .attr('font-size', (d) => (d.type === 'genre' ? '13px' : '10px'))
       .attr('font-weight', (d) => (d.type === 'genre' ? '600' : '400'))
       .attr('opacity', 0.9);
-
-    // Update positions on tick
-    simulation.on('tick', () => {
-      link
-        .attr('x1', (d: any) => d.source.x)
-        .attr('y1', (d: any) => d.source.y)
-        .attr('x2', (d: any) => d.target.x)
-        .attr('y2', (d: any) => d.target.y);
-
-      nodeGroup.attr('transform', (d: any) => `translate(${d.x}, ${d.y})`);
-    });
 
     return () => {
       simulation.stop();
