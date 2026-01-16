@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import {
   Map,
   Calendar,
@@ -27,6 +28,7 @@ interface User {
   real_name?: string;
   realname?: string;
   provider?: "lastfm";
+  image?: string;
 }
 
 const navItems = [
@@ -143,8 +145,22 @@ export const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
         <div className="flex items-center gap-4">
           {user && (
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-nebula-purple to-nebula-pink flex items-center justify-center text-sm font-medium text-white">
-                {getUserInitial()}
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-nebula-purple to-nebula-pink flex items-center justify-center text-sm font-medium text-white overflow-hidden relative">
+                {user.image && user.image.trim() ? (
+                  <Image
+                    src={user.image}
+                    alt={getUserDisplayName()}
+                    fill
+                    className="object-cover rounded-full"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      target.style.display = 'none';
+                    }}
+                    unoptimized
+                  />
+                ) : (
+                  <span>{getUserInitial()}</span>
+                )}
               </div>
               <span className="text-sm text-muted-foreground hidden lg:inline">
                 {getUserDisplayName()}
