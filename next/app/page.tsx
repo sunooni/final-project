@@ -3,13 +3,13 @@ import { redirect } from 'next/navigation';
 
 export default async function Home() {
   const cookieStore = await cookies();
-  const userCookie = cookieStore.get('yandex_user');
+  const lastfmSession = cookieStore.get('lastfm_session_key');
 
   // Если пользователь авторизован, перенаправляем на дашборд
-  if (userCookie) {
+  if (lastfmSession) {
     redirect('/taste-map');
   }
 
   // Если не авторизован, перенаправляем на страницу авторизации
-  redirect('/auth');
+  redirect('/auth/lastfm');
 }

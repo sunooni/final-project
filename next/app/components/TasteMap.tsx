@@ -36,11 +36,22 @@ export const TasteMap = () => {
     checkAuth();
   }, []);
 
+  useEffect(() => {
+    // Автоматически загружаем треки после успешной авторизации
+    if (isAuthenticated === true && lovedTracks.length === 0 && !loading) {
+      fetchLovedTracks();
+    }
+  }, [isAuthenticated]);
+
   const checkAuth = async () => {
     try {
-      const response = await fetch("/api/auth/user");
-      const data = await response.json();
-      setIsAuthenticated(data.authenticated && data.user?.provider === "lastfm");
+      const response = await fetch("/api/lastfm/user/info");
+      if (response.ok) {
+        const data = await response.json();
+        setIsAuthenticated(data.success && !!data.user);
+      } else {
+        setIsAuthenticated(false);
+      }
     } catch (err) {
       setIsAuthenticated(false);
     }

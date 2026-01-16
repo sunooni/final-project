@@ -10,12 +10,12 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     return NextResponse.redirect(
-      new URL(`/?error=${encodeURIComponent(error)}`, request.url)
+      new URL(`/auth/lastfm?error=${encodeURIComponent(error)}`, request.url)
     );
   }
 
   if (!token) {
-    return NextResponse.redirect(new URL("/?error=no_token", request.url));
+    return NextResponse.redirect(new URL("/auth/lastfm?error=no_token", request.url));
   }
 
   try {
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       const errorData = await sessionResponse.text();
       console.error("Session error:", errorData);
       return NextResponse.redirect(
-        new URL("/?error=session_failed", request.url)
+        new URL("/auth/lastfm?error=session_failed", request.url)
       );
     }
 
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       console.error("Last.fm API error:", sessionData.message);
       return NextResponse.redirect(
         new URL(
-          `/?error=${encodeURIComponent(sessionData.message)}`,
+          `/auth/lastfm?error=${encodeURIComponent(sessionData.message)}`,
           request.url
         )
       );
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
 
     if (!sessionKey) {
       return NextResponse.redirect(
-        new URL("/?error=no_session_key", request.url)
+        new URL("/auth/lastfm?error=no_session_key", request.url)
       );
     }
 
@@ -87,11 +87,11 @@ export async function GET(request: NextRequest) {
       maxAge: 86400 * 365,
     });
 
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(new URL("/taste-map", request.url));
   } catch (error) {
     console.error("Last.fm OAuth callback error:", error);
     return NextResponse.redirect(
-      new URL("/?error=internal_error", request.url)
+      new URL("/auth/lastfm?error=internal_error", request.url)
     );
   }
 }

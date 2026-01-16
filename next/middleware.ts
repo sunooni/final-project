@@ -5,19 +5,19 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
   // Защищенные маршруты (дашборд)
-  const protectedRoutes = ['/taste-map', '/emotions', '/evolution', '/galaxy', '/friends', '/dashboard'];
+  const protectedRoutes = ['/taste-map', '/emotions', '/evolution', '/galaxy', '/friends'];
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
   
-  // Проверяем наличие токена авторизации
-  const token = request.cookies.get('yandex_access_token');
+  // Проверяем наличие токена авторизации Last.fm
+  const token = request.cookies.get('lastfm_session_key');
   
   // Если пользователь не авторизован и пытается зайти на защищенный маршрут
   if (isProtectedRoute && !token) {
-    return NextResponse.redirect(new URL('/auth', request.url));
+    return NextResponse.redirect(new URL('/auth/lastfm', request.url));
   }
   
   // Если пользователь авторизован и пытается зайти на страницу авторизации
-  if (pathname === '/auth' && token) {
+  if (pathname.startsWith('/auth') && token) {
     return NextResponse.redirect(new URL('/taste-map', request.url));
   }
   
