@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Navigation } from './Navigation';
-import { TasteMap } from './TasteMap';
-import { EmotionalCalendar } from './EmotionalCalendar';
-import { EvolutionTimeline } from './EvolutionTimeline';
-import { GalaxyView } from './GalaxyView';
-import { SocialHub } from './SocialHub';
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Navigation } from "./Navigation";
+import { TasteMap } from "./TasteMap";
+import { EmotionalCalendar } from "./EmotionalCalendar";
+import { EvolutionTimeline } from "./EvolutionTimeline";
+import { GalaxyView } from "./GalaxyView";
+import { SocialHub } from "./SocialHub";
 
 const tabComponents: Record<string, React.ComponentType> = {
   map: TasteMap,
@@ -18,13 +18,13 @@ const tabComponents: Record<string, React.ComponentType> = {
 };
 
 export const Dashboard = () => {
-  const [activeTab, setActiveTab] = useState('map');
+  const [activeTab, setActiveTab] = useState("map");
   const ActiveComponent = tabComponents[activeTab];
 
   return (
     <div className="min-h-screen">
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
-      
+
       <main className="pt-24 pb-8 px-4 md:px-8 max-w-[1600px] mx-auto min-h-screen">
         <AnimatePresence mode="wait">
           <motion.div

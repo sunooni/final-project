@@ -16,8 +16,11 @@ export default function AuthStatus() {
     } else if (error) {
       const errorMessages: Record<string, string> = {
         no_code: 'Код авторизации не получен',
+        no_token: 'Токен авторизации не получен',
         token_exchange_failed: 'Ошибка обмена токена',
         user_info_failed: 'Ошибка получения информации о пользователе',
+        session_failed: 'Ошибка получения сессии',
+        no_session_key: 'Ключ сессии не получен',
         internal_error: 'Внутренняя ошибка сервера',
       };
       setMessage({
