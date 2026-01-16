@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Navigation } from "./Navigation";
 import { TasteMap } from "./TasteMap";
+import { TraksUser } from "./TraksUser";
 import { EmotionalCalendar } from "./EmotionalCalendar";
 import { EvolutionTimeline } from "./EvolutionTimeline";
 import { GalaxyView } from "./GalaxyView";
@@ -11,6 +12,7 @@ import { SocialHub } from "./SocialHub";
 
 const tabComponents: Record<string, React.ComponentType> = {
   map: TasteMap,
+  tracks: TraksUser,
   calendar: EmotionalCalendar,
   evolution: EvolutionTimeline,
   galaxy: GalaxyView,
