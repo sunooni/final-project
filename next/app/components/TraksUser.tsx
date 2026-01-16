@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Track {
@@ -54,25 +54,30 @@ export const TraksUser = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
   const [useDatabase, setUseDatabase] = useState(false); // По умолчанию загружаем из Last.fm
+  const hasCheckedAuth = useRef(false);
 
   useEffect(() => {
+    // Предотвращаем повторные запросы
+    if (hasCheckedAuth.current) return;
+    hasCheckedAuth.current = true;
+
+    const checkAuth = async () => {
+      try {
+        const response = await fetch("/api/auth/user");
+        const data = await response.json();
+        const authenticated =
+          data.authenticated && data.user?.provider === "lastfm";
+        setIsAuthenticated(authenticated);
+        if (authenticated && data.user?.id) {
+          setUserId(data.user.id);
+        }
+      } catch {
+        setIsAuthenticated(false);
+      }
+    };
+
     checkAuth();
   }, []);
-
-  const checkAuth = async () => {
-    try {
-      const response = await fetch("/api/auth/user");
-      const data = await response.json();
-      const authenticated =
-        data.authenticated && data.user?.provider === "lastfm";
-      setIsAuthenticated(authenticated);
-      if (authenticated && data.user?.id) {
-        setUserId(data.user.id);
-      }
-    } catch {
-      setIsAuthenticated(false);
-    }
-  };
 
   const loadTracksFromDB = useCallback(async () => {
     if (!userId) return;
@@ -340,22 +345,6 @@ export const TraksUser = () => {
                         transition={{ delay: index * 0.02 }}
                         className="flex items-center gap-4 p-4 bg-white dark:bg-zinc-800 rounded-lg hover:shadow-md transition-shadow"
                       >
-                        {(dbTrack.track.image ||
-                          dbTrack.track.album?.image) && (
-                          <img
-                            src={
-                              dbTrack.track.album?.image ||
-                              dbTrack.track.image ||
-                              ""
-                            }
-                            alt={dbTrack.track.name}
-                            className="w-16 h-16 rounded object-cover"
-                            onError={(e) => {
-                              e.currentTarget.style.display = "none";
-                            }}
-                          />
-                        )}
-
                         <div className="flex-1 min-w-0">
                           <h3 className="font-medium text-black dark:text-zinc-50 truncate">
                             {dbTrack.track.name}
@@ -389,20 +378,6 @@ export const TraksUser = () => {
                         transition={{ delay: index * 0.02 }}
                         className="flex items-center gap-4 p-4 bg-white dark:bg-zinc-800 rounded-lg hover:shadow-md transition-shadow"
                       >
-                        {track.image && track.image.length > 0 && (
-                          <img
-                            src={
-                              track.image.find(
-                                (img) => img.size === "medium"
-                              )?.["#text"] ||
-                              track.image[track.image.length - 1]["#text"] ||
-                              ""
-                            }
-                            alt={track.name}
-                            className="w-16 h-16 rounded object-cover"
-                          />
-                        )}
-
                         <div className="flex-1 min-w-0">
                           <h3 className="font-medium text-black dark:text-zinc-50 truncate">
                             {track.name}

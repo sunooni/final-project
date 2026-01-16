@@ -25,6 +25,7 @@ export async function GET() {
               playcount: userResult.data.playcount,
               country: userResult.data.country,
               realname: userResult.data.realname,
+              image: userResult.data.image,
             } 
           });
         }
