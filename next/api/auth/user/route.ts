@@ -3,17 +3,31 @@ import { cookies } from 'next/headers';
 
 export async function GET() {
   const cookieStore = await cookies();
-  const userCookie = cookieStore.get('yandex_user');
-
-  if (!userCookie) {
-    return NextResponse.json({ authenticated: false }, { status: 401 });
+  
+  // Check for Yandex user
+  const yandexUserCookie = cookieStore.get('yandex_user');
+  if (yandexUserCookie) {
+    try {
+      const user = JSON.parse(yandexUserCookie.value);
+      return NextResponse.json({ authenticated: true, user: { ...user, provider: 'yandex' } });
+    } catch (error) {
+      // Continue to check Last.fm
+    }
   }
 
-  try {
-    const user = JSON.parse(userCookie.value);
-    return NextResponse.json({ authenticated: true, user });
-  } catch (error) {
-    return NextResponse.json({ authenticated: false }, { status: 401 });
+  // Check for Last.fm user
+  const lastfmUsername = cookieStore.get('lastfm_username');
+  if (lastfmUsername) {
+    return NextResponse.json({ 
+      authenticated: true, 
+      user: { 
+        username: lastfmUsername.value,
+        login: lastfmUsername.value,
+        provider: 'lastfm'
+      } 
+    });
   }
+
+  return NextResponse.json({ authenticated: false }, { status: 401 });
 }
 
