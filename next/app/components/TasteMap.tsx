@@ -131,7 +131,7 @@ export const TasteMap = () => {
       id: `genre-${g.name}`,
       name: g.name,
       type: 'genre' as const,
-      value: Math.sqrt(g.trackCount) * 12, // Large planets
+      value: Math.sqrt(g.trackCount) * 24, // Large planets
       color: g.color || '#FFB3BA',
     }));
 
@@ -150,7 +150,7 @@ export const TasteMap = () => {
             id: artistId,
             name: artist.name,
             type: 'artist' as const,
-            value: Math.sqrt(artist.trackCount) * 2.5, // Smaller satellites
+            value: Math.sqrt(artist.trackCount) * 5, // Smaller satellites
             color: genre.color || '#FFB3BA',
           });
 
