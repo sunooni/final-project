@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { lastfmConfig } from "@/config/lastfm";
 import { generateApiSignature } from "@/app/lib/lastfm";
+import { callLastfmApi } from "@/app/lib/lastfm";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;

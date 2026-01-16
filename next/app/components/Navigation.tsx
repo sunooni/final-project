@@ -30,10 +30,10 @@ export const Navigation = () => {
 //   const { user, logout } = useUserStore();
 
   return (
-    <motion.nav 
+    <motion.nav
       initial={{ y: -100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.6, ease: 'easeOut' }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
       className="fixed top-0 left-0 right-0 z-50 glass-card mx-4 mt-4 rounded-2xl"
     >
       <div className="flex items-center justify-between px-6 py-4">
@@ -41,7 +41,9 @@ export const Navigation = () => {
           <div className="w-10 h-10 rounded-xl nebula-bg flex items-center justify-center">
             <Sparkles className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className="text-lg font-semibold text-gradient-nebula">Soundscape DNA</span>
+          <span className="text-lg font-semibold text-gradient-nebula">
+            Soundscape DNA
+          </span>
         </div>
 
         <div className="flex items-center gap-1 bg-muted/50 rounded-xl p-1">
@@ -55,8 +57,8 @@ export const Navigation = () => {
                 href={item.href}
                 className={cn(
                   "relative flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300",
-                  isActive 
-                    ? "text-primary-foreground" 
+                  isActive
+                    ? "text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
