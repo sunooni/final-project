@@ -22,6 +22,8 @@ interface Link {
   target: string | Node;
   value: number;
 }
+const CACHE_DURATION = 5 * 60 * 1000; // 5 минут
+
 export const TasteMap = () => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -30,10 +32,25 @@ export const TasteMap = () => {
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { topGenres, topArtists, setGalaxyData } = useUserStore();
+  const { topGenres, topArtists, setGalaxyData, dataTimestamp } =
+    useUserStore();
 
   useEffect(() => {
-    // Загружаем данные только один раз при монтировании
+    // Проверяем, есть ли уже данные в store и не устарели ли они
+    const hasData = topGenres.length > 0;
+    const isDataFresh =
+      hasData &&
+      dataTimestamp !== undefined &&
+      Date.now() - dataTimestamp < CACHE_DURATION;
+
+    if (isDataFresh) {
+      // Данные уже есть в store и свежие, используем их сразу
+      setLoading(false);
+      dataFetchedRef.current = true;
+      return;
+    }
+
+    // Загружаем данные только если их нет или они устарели
     if (!dataFetchedRef.current) {
       dataFetchedRef.current = true;
 
@@ -49,17 +66,19 @@ export const TasteMap = () => {
               setLoading(false);
               return;
             }
-            
+
             // Try to parse error response as JSON, fallback to status text
             let errorMessage = "Ошибка загрузки данных";
             try {
               const errorData = await response.json();
               errorMessage = errorData.error || errorMessage;
-            } catch (parseError) {
+            } catch {
               // If response is not JSON (e.g., 404 HTML page), use status text
-              errorMessage = `Ошибка ${response.status}: ${response.statusText || "Не удалось загрузить данные"}`;
+              errorMessage = `Ошибка ${response.status}: ${
+                response.statusText || "Не удалось загрузить данные"
+              }`;
             }
-            
+
             setError(errorMessage);
             setLoading(false);
             return;
@@ -75,7 +94,9 @@ export const TasteMap = () => {
           }
         } catch (err) {
           console.error("Error fetching galaxy data:", err);
-          setError(err instanceof Error ? err.message : "Ошибка при загрузке данных");
+          setError(
+            err instanceof Error ? err.message : "Ошибка при загрузке данных"
+          );
         } finally {
           setLoading(false);
         }
@@ -83,7 +104,10 @@ export const TasteMap = () => {
 
       fetchGalaxyData();
     }
+  }, [topGenres.length, dataTimestamp, setGalaxyData]);
 
+  // Отдельный useEffect для рендеринга визуализации
+  useEffect(() => {
     // Рендерим визуализацию когда данные загружены
     if (
       loading ||
@@ -301,7 +325,7 @@ export const TasteMap = () => {
         simulationRef.current = null;
       }
     };
-  }, [topGenres, topArtists, loading, setGalaxyData]);
+  }, [topGenres, topArtists, loading]);
 
   if (loading) {
     return (

@@ -16,7 +16,9 @@ interface Genre {
 interface UserStore {
   topGenres: Genre[];
   topArtists: Artist[];
+  dataTimestamp?: number;
   setGalaxyData: (genres: Genre[]) => void;
+  clearGalaxyData: () => void;
 }
 
 // Pastel colors for planets
@@ -36,6 +38,7 @@ const pastelColors = [
 export const useUserStore = create<UserStore>((set) => ({
   topGenres: [],
   topArtists: [],
+  dataTimestamp: undefined,
   setGalaxyData: (genres: Genre[]) => {
     // Assign pastel colors to genres
     const genresWithColors = genres.map((genre, index) => ({
@@ -60,6 +63,13 @@ export const useUserStore = create<UserStore>((set) => ({
     const topArtists = Array.from(artistMap.values())
       .sort((a, b) => b.trackCount - a.trackCount);
 
-    set({ topGenres: genresWithColors, topArtists });
+    set({ 
+      topGenres: genresWithColors, 
+      topArtists,
+      dataTimestamp: Date.now()
+    });
+  },
+  clearGalaxyData: () => {
+    set({ topGenres: [], topArtists: [], dataTimestamp: undefined });
   },
 }));
