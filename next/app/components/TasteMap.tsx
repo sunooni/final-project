@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useState } from 'react';
-import * as d3 from 'd3';
-import { motion } from 'framer-motion';
-import { useUserStore } from '@/app/stores/userStore';
+import { useEffect, useRef, useState } from "react";
+import * as d3 from "d3";
+import { motion } from "framer-motion";
+import { useUserStore } from "@/app/stores/userStore";
 
 interface Node {
   id: string;
   name: string;
-  type: 'genre' | 'artist';
+  type: "genre" | "artist";
   value: number;
   color: string;
   x?: number;
@@ -36,21 +36,21 @@ export const TasteMap = () => {
     // Загружаем данные только один раз при монтировании
     if (!dataFetchedRef.current) {
       dataFetchedRef.current = true;
-      
+
       const fetchGalaxyData = async () => {
         try {
           setLoading(true);
           setError(null);
-          const response = await fetch('/api/lastfm/galaxy');
-          
+          const response = await fetch("/api/lastfm/galaxy");
+
           if (!response.ok) {
             if (response.status === 401) {
-              setError('Необходима авторизация через Last.fm');
+              setError("Необходима авторизация через Last.fm");
               setLoading(false);
               return;
             }
             const errorData = await response.json();
-            setError(errorData.error || 'Ошибка загрузки данных');
+            setError(errorData.error || "Ошибка загрузки данных");
             setLoading(false);
             return;
           }
@@ -59,11 +59,13 @@ export const TasteMap = () => {
           if (data.genres && data.genres.length > 0) {
             setGalaxyData(data.genres);
           } else {
-            setError('Нет данных для отображения. Добавьте любимые треки на Last.fm');
+            setError(
+              "Нет данных для отображения. Добавьте любимые треки на Last.fm"
+            );
           }
         } catch (err) {
-          console.error('Error fetching galaxy data:', err);
-          setError('Ошибка при загрузке данных');
+          console.error("Error fetching galaxy data:", err);
+          setError("Ошибка при загрузке данных");
         } finally {
           setLoading(false);
         }
@@ -73,7 +75,12 @@ export const TasteMap = () => {
     }
 
     // Рендерим визуализацию когда данные загружены
-    if (loading || !svgRef.current || !containerRef.current || topGenres.length === 0) {
+    if (
+      loading ||
+      !svgRef.current ||
+      !containerRef.current ||
+      topGenres.length === 0
+    ) {
       return;
     }
 
@@ -87,19 +94,19 @@ export const TasteMap = () => {
     const height = container.clientHeight;
 
     // Clear previous content
-    d3.select(svgRef.current).selectAll('*').remove();
+    d3.select(svgRef.current).selectAll("*").remove();
 
     const svg = d3
       .select(svgRef.current)
-      .attr('width', width)
-      .attr('height', height);
+      .attr("width", width)
+      .attr("height", height);
 
     // Create gradient definitions
-    const defs = svg.append('defs');
+    const defs = svg.append("defs");
 
     // Add stars background
-    const starsGroup = svg.append('g').attr('class', 'stars');
-    
+    const starsGroup = svg.append("g").attr("class", "stars");
+
     // Generate random stars
     const starCount = 200;
     for (let i = 0; i < starCount; i++) {
@@ -107,46 +114,46 @@ export const TasteMap = () => {
       const y = Math.random() * height;
       const size = Math.random() * 2 + 0.5;
       const opacity = Math.random() * 0.7 + 0.3;
-      
+
       starsGroup
-        .append('circle')
-        .attr('cx', x)
-        .attr('cy', y)
-        .attr('r', size)
-        .attr('fill', 'white')
-        .attr('opacity', opacity)
-        .append('animate')
-        .attr('attributeName', 'opacity')
-        .attr('values', `${opacity};${opacity * 0.3};${opacity}`)
-        .attr('dur', `${Math.random() * 3 + 2}s`)
-        .attr('repeatCount', 'indefinite');
+        .append("circle")
+        .attr("cx", x)
+        .attr("cy", y)
+        .attr("r", size)
+        .attr("fill", "white")
+        .attr("opacity", opacity)
+        .append("animate")
+        .attr("attributeName", "opacity")
+        .attr("values", `${opacity};${opacity * 0.3};${opacity}`)
+        .attr("dur", `${Math.random() * 3 + 2}s`)
+        .attr("repeatCount", "indefinite");
     }
 
     // Glow filter
     const filter = defs
-      .append('filter')
-      .attr('id', 'glow')
-      .attr('x', '-50%')
-      .attr('y', '-50%')
-      .attr('width', '200%')
-      .attr('height', '200%');
+      .append("filter")
+      .attr("id", "glow")
+      .attr("x", "-50%")
+      .attr("y", "-50%")
+      .attr("width", "200%")
+      .attr("height", "200%");
 
     filter
-      .append('feGaussianBlur')
-      .attr('stdDeviation', '4')
-      .attr('result', 'coloredBlur');
+      .append("feGaussianBlur")
+      .attr("stdDeviation", "4")
+      .attr("result", "coloredBlur");
 
-    const feMerge = filter.append('feMerge');
-    feMerge.append('feMergeNode').attr('in', 'coloredBlur');
-    feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+    const feMerge = filter.append("feMerge");
+    feMerge.append("feMergeNode").attr("in", "coloredBlur");
+    feMerge.append("feMergeNode").attr("in", "SourceGraphic");
 
     // Create nodes - genres as planets (bigger)
     const genreNodes: Node[] = topGenres.slice(0, 8).map((g) => ({
       id: `genre-${g.name}`,
       name: g.name,
-      type: 'genre' as const,
-      value: Math.sqrt(g.trackCount) * 12,
-      color: g.color || '#FFB3BA',
+      type: "genre" as const,
+      value: Math.sqrt(g.trackCount) * 24,
+      color: g.color || "#FFB3BA",
     }));
 
     // Create artist nodes - top artists as satellites (smaller)
@@ -157,14 +164,14 @@ export const TasteMap = () => {
     topGenres.slice(0, 8).forEach((genre) => {
       genre.artists.slice(0, 5).forEach((artist) => {
         const artistId = `artist-${artist.name}`;
-        
+
         if (!usedArtists.has(artistId)) {
           artistNodes.push({
             id: artistId,
             name: artist.name,
-            type: 'artist' as const,
-            value: Math.sqrt(artist.trackCount) * 2.5,
-            color: genre.color || '#FFB3BA',
+            type: "artist" as const,
+            value: Math.sqrt(artist.trackCount) * 4.5,
+            color: genre.color || "#FFB3BA",
           });
 
           links.push({
@@ -184,91 +191,97 @@ export const TasteMap = () => {
     const simulation = d3
       .forceSimulation(nodes as d3.SimulationNodeDatum[])
       .force(
-        'link',
+        "link",
         d3
           .forceLink(links)
           .id((d: any) => d.id)
           .distance(100)
       )
-      .force('charge', d3.forceManyBody().strength(-400))
-      .force('center', d3.forceCenter(width / 2, height / 2))
+      .force("charge", d3.forceManyBody().strength(-400))
+      .force("center", d3.forceCenter(width / 2, height / 2))
       .force(
-        'collision',
+        "collision",
         d3.forceCollide().radius((d: any) => d.value + 10)
       );
 
     // Add boundary force to keep nodes inside the container
     const padding = 50;
-    simulation.on('tick', () => {
+    simulation.on("tick", () => {
       nodes.forEach((d: any) => {
         const radius = d.value || 0;
-        d.x = Math.max(padding + radius, Math.min(width - padding - radius, d.x));
-        d.y = Math.max(padding + radius, Math.min(height - padding - radius, d.y));
+        d.x = Math.max(
+          padding + radius,
+          Math.min(width - padding - radius, d.x)
+        );
+        d.y = Math.max(
+          padding + radius,
+          Math.min(height - padding - radius, d.y)
+        );
       });
 
       link
-        .attr('x1', (d: any) => d.source.x)
-        .attr('y1', (d: any) => d.source.y)
-        .attr('x2', (d: any) => d.target.x)
-        .attr('y2', (d: any) => d.target.y);
+        .attr("x1", (d: any) => d.source.x)
+        .attr("y1", (d: any) => d.source.y)
+        .attr("x2", (d: any) => d.target.x)
+        .attr("y2", (d: any) => d.target.y);
 
-      nodeGroup.attr('transform', (d: any) => `translate(${d.x}, ${d.y})`);
+      nodeGroup.attr("transform", (d: any) => `translate(${d.x}, ${d.y})`);
     });
 
     // Draw links
     const link = svg
-      .append('g')
-      .selectAll('line')
+      .append("g")
+      .selectAll("line")
       .data(links)
-      .join('line')
-      .attr('stroke', 'rgba(255, 255, 255, 0.15)')
-      .attr('stroke-width', 1.5);
+      .join("line")
+      .attr("stroke", "rgba(255, 255, 255, 0.15)")
+      .attr("stroke-width", 1.5);
 
     // Draw nodes
     const nodeGroup = svg
-      .append('g')
-      .selectAll('g')
+      .append("g")
+      .selectAll("g")
       .data(nodes)
-      .join('g')
-      .style('cursor', 'pointer')
+      .join("g")
+      .style("cursor", "pointer")
       .call(
         d3
           .drag<any, Node>()
-          .on('start', (event, d) => {
+          .on("start", (event, d) => {
             if (!event.active) simulation.alphaTarget(0.3).restart();
             d.fx = d.x;
             d.fy = d.y;
           })
-          .on('drag', (event, d) => {
+          .on("drag", (event, d) => {
             d.fx = event.x;
             d.fy = event.y;
           })
-          .on('end', (event, d) => {
+          .on("end", (event, d) => {
             if (!event.active) simulation.alphaTarget(0);
             d.fx = null;
             d.fy = null;
           })
       )
-      .on('click', (_, d) => setSelectedNode(d));
+      .on("click", (_, d) => setSelectedNode(d));
 
     // Node circles with glow
     nodeGroup
-      .append('circle')
-      .attr('r', (d) => d.value)
-      .attr('fill', (d) => d.color)
-      .attr('opacity', (d) => (d.type === 'genre' ? 0.85 : 0.7))
-      .attr('filter', 'url(#glow)');
+      .append("circle")
+      .attr("r", (d) => d.value)
+      .attr("fill", (d) => d.color)
+      .attr("opacity", (d) => (d.type === "genre" ? 0.85 : 0.7))
+      .attr("filter", "url(#glow)");
 
     // Labels
     nodeGroup
-      .append('text')
+      .append("text")
       .text((d) => d.name)
-      .attr('text-anchor', 'middle')
-      .attr('dy', (d) => d.value + 16)
-      .attr('fill', 'white')
-      .attr('font-size', (d) => (d.type === 'genre' ? '13px' : '10px'))
-      .attr('font-weight', (d) => (d.type === 'genre' ? '600' : '400'))
-      .attr('opacity', 0.9);
+      .attr("text-anchor", "middle")
+      .attr("dy", (d) => d.value + 16)
+      .attr("fill", "white")
+      .attr("font-size", (d) => (d.type === "genre" ? "13px" : "10px"))
+      .attr("font-weight", (d) => (d.type === "genre" ? "600" : "400"))
+      .attr("opacity", 0.9);
 
     simulationRef.current = simulation;
 
@@ -284,8 +297,12 @@ export const TasteMap = () => {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
-          <div className="text-xl mb-2 text-white">Загрузка космической карты...</div>
-          <div className="text-sm text-gray-400">Анализируем вашу музыку...</div>
+          <div className="text-xl mb-2 text-white">
+            Загрузка космической карты...
+          </div>
+          <div className="text-sm text-gray-400">
+            Анализируем вашу музыку...
+          </div>
         </div>
       </div>
     );
@@ -341,7 +358,9 @@ export const TasteMap = () => {
               </span>
             </div>
             <p className="text-sm text-gray-300">
-              {selectedNode.type === 'genre' ? 'Жанр (Планета)' : 'Артист (Спутник)'}
+              {selectedNode.type === "genre"
+                ? "Жанр (Планета)"
+                : "Артист (Спутник)"}
             </p>
             <button
               onClick={() => setSelectedNode(null)}

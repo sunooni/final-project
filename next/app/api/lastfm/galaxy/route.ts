@@ -74,22 +74,48 @@ export async function GET() {
       return NextResponse.json({ genres: [] });
     }
 
+    console.log(`Processing ${allTracks.length} tracks`);
+
     // Group tracks by artist
     const artistTracks: Record<string, { tracks: Track[]; url: string }> = {};
     for (const track of allTracks) {
-      const artistName = track.artist['#text'];
+      // Handle different possible structures of artist data
+      const artistName = track.artist?.['#text'] || track.artist?.name || track.artist;
+      
+      // Skip tracks without valid artist name
+      if (!artistName || typeof artistName !== 'string' || artistName.trim() === '') {
+        console.warn('Skipping track with invalid artist:', track);
+        continue;
+      }
+      
       if (!artistTracks[artistName]) {
-        artistTracks[artistName] = { tracks: [], url: track.url.split('/track/')[0] + '/music/' + encodeURIComponent(artistName) };
+        // Try to construct artist URL from track URL
+        let artistUrl = `https://www.last.fm/music/${encodeURIComponent(artistName)}`;
+        if (track.url) {
+          const trackUrlParts = track.url.split('/track/');
+          if (trackUrlParts.length > 0 && trackUrlParts[0]) {
+            artistUrl = trackUrlParts[0] + '/music/' + encodeURIComponent(artistName);
+          }
+        }
+        artistTracks[artistName] = { tracks: [], url: artistUrl };
       }
       artistTracks[artistName].tracks.push(track);
     }
+
+    console.log(`Found ${Object.keys(artistTracks).length} unique artists:`, Object.keys(artistTracks));
 
     // Get tags (genres) for each unique artist
     // Use public API method (no auth required for artist.getInfo)
     const genreMap: Record<string, Genre> = {};
     
     // Process artists in batches to avoid rate limiting
-    const artistNames = Object.keys(artistTracks);
+    const artistNames = Object.keys(artistTracks).filter(name => name && name !== 'undefined');
+    
+    if (artistNames.length === 0) {
+      console.warn('No valid artist names found');
+      return NextResponse.json({ genres: [] });
+    }
+    
     const batchSize = 5;
     
     for (let i = 0; i < artistNames.length; i += batchSize) {
@@ -97,6 +123,11 @@ export async function GET() {
       
       await Promise.all(batch.map(async (artistName) => {
         try {
+          // Skip invalid artist names
+          if (!artistName || artistName === 'undefined' || artistName.trim() === '') {
+            return;
+          }
+          
           // Use public API method - no authentication needed
           const url = new URL('https://ws.audioscrobbler.com/2.0/');
           url.searchParams.set('method', 'artist.getInfo');
@@ -106,26 +137,37 @@ export async function GET() {
 
           const response = await fetch(url.toString());
           if (!response.ok) {
-            console.error(`Failed to fetch artist ${artistName}`);
+            console.error(`Failed to fetch artist ${artistName}: ${response.status}`);
             return;
           }
 
           const artistData = await response.json();
           const artistInfo: ArtistInfo = artistData.artist;
-          if (!artistInfo) return;
+          if (!artistInfo || !artistInfo.name) {
+            console.warn(`No artist info for ${artistName}`);
+            return;
+          }
 
           const tags = artistInfo.tags?.tag;
-          if (!tags) return;
+          if (!tags) {
+            console.warn(`No tags for artist ${artistName}`);
+            return;
+          }
 
           const tagArray = Array.isArray(tags) ? tags : [tags];
-          const trackCount = artistTracks[artistName].tracks.length;
+          const trackCount = artistTracks[artistName]?.tracks?.length || 0;
+          
+          if (trackCount === 0) {
+            return;
+          }
 
-          // Add artist to each genre
-          for (const tag of tagArray) {
-            const genreName = tag.name.toLowerCase();
+          // Use only the first genre from the list
+          const firstTag = tagArray[0];
+          if (firstTag && firstTag.name) {
+            const genreName = firstTag.name.toLowerCase();
             if (!genreMap[genreName]) {
               genreMap[genreName] = {
-                name: tag.name,
+                name: firstTag.name,
                 trackCount: 0,
                 artists: [],
               };
@@ -140,7 +182,7 @@ export async function GET() {
               genreMap[genreName].artists.push({
                 name: artistName,
                 trackCount,
-                url: artistInfo.url || `https://www.last.fm/music/${encodeURIComponent(artistName)}`,
+                url: artistInfo.url || artistTracks[artistName]?.url || `https://www.last.fm/music/${encodeURIComponent(artistName)}`,
               });
             }
           }
@@ -158,12 +200,17 @@ export async function GET() {
 
     // Convert to array and sort by track count
     const genres = Object.values(genreMap)
-      .filter(genre => genre.trackCount > 0)
+      .filter(genre => genre.trackCount > 0 && genre.artists.length > 0)
       .sort((a, b) => b.trackCount - a.trackCount)
       .map(genre => ({
         ...genre,
-        artists: genre.artists.sort((a, b) => b.trackCount - a.trackCount),
-      }));
+        artists: genre.artists
+          .filter(artist => artist.name && artist.name !== 'undefined' && artist.trackCount > 0)
+          .sort((a, b) => b.trackCount - a.trackCount),
+      }))
+      .filter(genre => genre.artists.length > 0);
+
+    console.log(`Returning ${genres.length} genres with artists`);
 
     return NextResponse.json({ genres });
   } catch (error) {
