@@ -5,7 +5,7 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
   // Защищенные маршруты (дашборд)
-  const protectedRoutes = ['/taste-map', '/emotions', '/evolution', '/galaxy', '/friends'];
+  const protectedRoutes = ['/taste-map', '/tracks', '/emotions', '/evolution', '/galaxy', '/friends'];
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
   
   // Проверяем наличие токена авторизации Last.fm

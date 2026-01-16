@@ -1,13 +1,14 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Map, Calendar, TrendingUp, Users, Sparkles, LogOut } from 'lucide-react';
+import { Map, Calendar, TrendingUp, Users, Sparkles, LogOut, Music } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/app/lib/utils';
 
 const navItems = [
   { id: 'taste-map', label: 'Карта Вкуса', icon: Map, href: '/taste-map' },
+  { id: 'tracks', label: 'Треки', icon: Music, href: '/tracks' },
   { id: 'emotions', label: 'Эмоции', icon: Calendar, href: '/emotions' },
   { id: 'evolution', label: 'Эволюция', icon: TrendingUp, href: '/evolution' },
   { id: 'galaxy', label: 'Галактика', icon: Sparkles, href: '/galaxy' },
