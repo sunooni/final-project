@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Image from "next/image";
@@ -43,27 +43,32 @@ const navItems = [
 export const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
   const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
-
-  const checkAuth = useCallback(async () => {
-    try {
-      const response = await fetch("/api/auth/user");
-      if (response.ok) {
-        const data = await response.json();
-        if (data.authenticated && data.user) {
-          setUser(data.user);
-        } else {
-          setUser(null);
-        }
-      }
-    } catch (error) {
-      console.error("Auth check error:", error);
-      setUser(null);
-    }
-  }, []);
+  const hasCheckedAuth = useRef(false);
 
   useEffect(() => {
+    // Предотвращаем повторные запросы
+    if (hasCheckedAuth.current) return;
+    hasCheckedAuth.current = true;
+
+    const checkAuth = async () => {
+      try {
+        const response = await fetch("/api/auth/user");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.authenticated && data.user) {
+            setUser(data.user);
+          } else {
+            setUser(null);
+          }
+        }
+      } catch (error) {
+        console.error("Auth check error:", error);
+        setUser(null);
+      }
+    };
+
     checkAuth();
-  }, [checkAuth]);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -154,7 +159,7 @@ export const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
                     className="object-cover rounded-full"
                     onError={(e) => {
                       const target = e.currentTarget;
-                      target.style.display = 'none';
+                      target.style.display = "none";
                     }}
                     unoptimized
                   />
