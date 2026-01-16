@@ -11,12 +11,12 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     return NextResponse.redirect(
-      new URL(`/?error=${encodeURIComponent(error)}`, request.url)
+      new URL(`/auth/lastfm?error=${encodeURIComponent(error)}`, request.url)
     );
   }
 
   if (!token) {
-    return NextResponse.redirect(new URL("/?error=no_token", request.url));
+    return NextResponse.redirect(new URL("/auth/lastfm?error=no_token", request.url));
   }
 
   try {
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       const errorData = await sessionResponse.text();
       console.error("Session error:", errorData);
       return NextResponse.redirect(
-        new URL("/?error=session_failed", request.url)
+        new URL("/auth/lastfm?error=session_failed", request.url)
       );
     }
 
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       console.error("Last.fm API error:", sessionData.message);
       return NextResponse.redirect(
         new URL(
-          `/?error=${encodeURIComponent(sessionData.message)}`,
+          `/auth/lastfm?error=${encodeURIComponent(sessionData.message)}`,
           request.url
         )
       );
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
 
     if (!sessionKey) {
       return NextResponse.redirect(
-        new URL("/?error=no_session_key", request.url)
+        new URL("/auth/lastfm?error=no_session_key", request.url)
       );
     }
 
@@ -88,64 +88,11 @@ export async function GET(request: NextRequest) {
       maxAge: 86400 * 365,
     });
 
-    // Получаем информацию о пользователе из Last.fm
-    try {
-      const userInfo = await callLastfmApi("user.getInfo", {
-        user: username,
-      });
-
-      // Сохраняем пользователя в базу данных через Express API
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/music";
-      await fetch(`${apiUrl}/users`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          lastfmUsername: username,
-          lastfmSessionKey: sessionKey,
-          provider: "lastfm",
-          playcount: userInfo.user?.playcount
-            ? parseInt(userInfo.user.playcount)
-            : 0,
-          country: userInfo.user?.country,
-          realname: userInfo.user?.realname,
-          image: userInfo.user?.image
-            ? Array.isArray(userInfo.user.image)
-              ? userInfo.user.image.find((img: any) => img.size === "large")?.[
-                  "#text"
-                ] || userInfo.user.image[userInfo.user.image.length - 1]?.["#text"]
-              : userInfo.user.image
-            : undefined,
-          url: userInfo.user?.url,
-        }),
-      });
-
-      // Сохраняем userId в cookie для быстрого доступа
-      const userResponse = await fetch(
-        `${apiUrl}/users/${encodeURIComponent(username)}`
-      );
-      if (userResponse.ok) {
-        const userData = await userResponse.json();
-        if (userData.id) {
-          cookieStore.set("user_id", userData.id.toString(), {
-            httpOnly: false,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            maxAge: 86400 * 365,
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Error saving user to database:", error);
-      // Продолжаем даже если не удалось сохранить в БД
-    }
-
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(new URL("/taste-map", request.url));
   } catch (error) {
     console.error("Last.fm OAuth callback error:", error);
     return NextResponse.redirect(
-      new URL("/?error=internal_error", request.url)
+      new URL("/auth/lastfm?error=internal_error", request.url)
     );
   }
 }
