@@ -22,51 +22,65 @@ interface Link {
   target: string | Node;
   value: number;
 }
-
 export const TasteMap = () => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const simulationRef = useRef<any>(null);
+  const dataFetchedRef = useRef(false);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { topGenres, topArtists, setGalaxyData } = useUserStore();
 
   useEffect(() => {
-    fetchGalaxyData();
-  }, []);
-
-  const fetchGalaxyData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch('/api/lastfm/galaxy');
+    // Загружаем данные только один раз при монтировании
+    if (!dataFetchedRef.current) {
+      dataFetchedRef.current = true;
       
-      if (!response.ok) {
-        if (response.status === 401) {
-          setError('Необходима авторизация через Last.fm');
-          return;
+      const fetchGalaxyData = async () => {
+        try {
+          setLoading(true);
+          setError(null);
+          const response = await fetch('/api/lastfm/galaxy');
+          
+          if (!response.ok) {
+            if (response.status === 401) {
+              setError('Необходима авторизация через Last.fm');
+              setLoading(false);
+              return;
+            }
+            const errorData = await response.json();
+            setError(errorData.error || 'Ошибка загрузки данных');
+            setLoading(false);
+            return;
+          }
+
+          const data = await response.json();
+          if (data.genres && data.genres.length > 0) {
+            setGalaxyData(data.genres);
+          } else {
+            setError('Нет данных для отображения. Добавьте любимые треки на Last.fm');
+          }
+        } catch (err) {
+          console.error('Error fetching galaxy data:', err);
+          setError('Ошибка при загрузке данных');
+        } finally {
+          setLoading(false);
         }
-        const errorData = await response.json();
-        setError(errorData.error || 'Ошибка загрузки данных');
-        return;
-      }
+      };
 
-      const data = await response.json();
-      if (data.genres && data.genres.length > 0) {
-        setGalaxyData(data.genres);
-      } else {
-        setError('Нет данных для отображения. Добавьте любимые треки на Last.fm');
-      }
-    } catch (err) {
-      console.error('Error fetching galaxy data:', err);
-      setError('Ошибка при загрузке данных');
-    } finally {
-      setLoading(false);
+      fetchGalaxyData();
     }
-  };
 
-  useEffect(() => {
-    if (!svgRef.current || !containerRef.current || topGenres.length === 0) return;
+    // Рендерим визуализацию когда данные загружены
+    if (loading || !svgRef.current || !containerRef.current || topGenres.length === 0) {
+      return;
+    }
+
+    // Останавливаем предыдущую симуляцию, если есть
+    if (simulationRef.current) {
+      simulationRef.current.stop();
+    }
 
     const container = containerRef.current;
     const width = container.clientWidth;
@@ -131,7 +145,7 @@ export const TasteMap = () => {
       id: `genre-${g.name}`,
       name: g.name,
       type: 'genre' as const,
-      value: Math.sqrt(g.trackCount) * 24, // Large planets
+      value: Math.sqrt(g.trackCount) * 12,
       color: g.color || '#FFB3BA',
     }));
 
@@ -144,17 +158,15 @@ export const TasteMap = () => {
       genre.artists.slice(0, 5).forEach((artist) => {
         const artistId = `artist-${artist.name}`;
         
-        // Each artist belongs to only one genre (planet)
         if (!usedArtists.has(artistId)) {
           artistNodes.push({
             id: artistId,
             name: artist.name,
             type: 'artist' as const,
-            value: Math.sqrt(artist.trackCount) * 5, // Smaller satellites
+            value: Math.sqrt(artist.trackCount) * 2.5,
             color: genre.color || '#FFB3BA',
           });
 
-          // Create link between artist and genre
           links.push({
             source: artistId,
             target: `genre-${genre.name}`,
@@ -188,7 +200,6 @@ export const TasteMap = () => {
     // Add boundary force to keep nodes inside the container
     const padding = 50;
     simulation.on('tick', () => {
-      // Keep nodes within bounds
       nodes.forEach((d: any) => {
         const radius = d.value || 0;
         d.x = Math.max(padding + radius, Math.min(width - padding - radius, d.x));
@@ -259,10 +270,15 @@ export const TasteMap = () => {
       .attr('font-weight', (d) => (d.type === 'genre' ? '600' : '400'))
       .attr('opacity', 0.9);
 
+    simulationRef.current = simulation;
+
     return () => {
-      simulation.stop();
+      if (simulationRef.current) {
+        simulationRef.current.stop();
+        simulationRef.current = null;
+      }
     };
-  }, [topGenres, topArtists]);
+  }, [topGenres, topArtists, loading, setGalaxyData]);
 
   if (loading) {
     return (
