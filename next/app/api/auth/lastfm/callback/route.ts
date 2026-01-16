@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { lastfmConfig } from "@/config/lastfm";
 import { generateApiSignature } from "@/app/lib/lastfm";
+import { callLastfmApi } from "@/app/lib/lastfm";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -86,6 +87,59 @@ export async function GET(request: NextRequest) {
       sameSite: "lax",
       maxAge: 86400 * 365,
     });
+
+    // Получаем информацию о пользователе из Last.fm
+    try {
+      const userInfo = await callLastfmApi("user.getInfo", {
+        user: username,
+      });
+
+      // Сохраняем пользователя в базу данных через Express API
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/music";
+      await fetch(`${apiUrl}/users`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          lastfmUsername: username,
+          lastfmSessionKey: sessionKey,
+          provider: "lastfm",
+          playcount: userInfo.user?.playcount
+            ? parseInt(userInfo.user.playcount)
+            : 0,
+          country: userInfo.user?.country,
+          realname: userInfo.user?.realname,
+          image: userInfo.user?.image
+            ? Array.isArray(userInfo.user.image)
+              ? userInfo.user.image.find((img: any) => img.size === "large")?.[
+                  "#text"
+                ] || userInfo.user.image[userInfo.user.image.length - 1]?.["#text"]
+              : userInfo.user.image
+            : undefined,
+          url: userInfo.user?.url,
+        }),
+      });
+
+      // Сохраняем userId в cookie для быстрого доступа
+      const userResponse = await fetch(
+        `${apiUrl}/users/${encodeURIComponent(username)}`
+      );
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        if (userData.id) {
+          cookieStore.set("user_id", userData.id.toString(), {
+            httpOnly: false,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            maxAge: 86400 * 365,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error saving user to database:", error);
+      // Продолжаем даже если не удалось сохранить в БД
+    }
 
     return NextResponse.redirect(new URL("/dashboard", request.url));
   } catch (error) {

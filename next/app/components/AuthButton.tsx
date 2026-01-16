@@ -12,7 +12,7 @@ interface User {
   first_name?: string;
   last_name?: string;
   username?: string;
-  provider?: 'yandex' | 'lastfm';
+  provider?: 'lastfm';
 }
 
 export default function AuthButton() {
@@ -44,12 +44,8 @@ export default function AuthButton() {
     }
   };
 
-  const handleLogin = (provider: 'yandex' | 'lastfm' = 'yandex') => {
-    if (provider === 'lastfm') {
-      window.location.href = '/api/auth/lastfm/login';
-    } else {
-      window.location.href = '/api/auth/login';
-    }
+  const handleLogin = () => {
+    window.location.href = '/api/auth/lastfm/login';
   };
 
   const handleLogout = async () => {
@@ -87,7 +83,7 @@ export default function AuthButton() {
           )}
           {user.provider && (
             <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">
-              Вход через {user.provider === 'yandex' ? 'Яндекс' : 'Last.fm'}
+              Вход через Last.fm
             </p>
           )}
         </div>
@@ -104,37 +100,12 @@ export default function AuthButton() {
   return (
     <div className="flex flex-col items-center gap-6 p-6">
       <h2 className="text-xl font-semibold text-black dark:text-zinc-50">
-        Войдите через музыкальный сервис
+        Войдите через Last.fm
       </h2>
       
       <div className="flex flex-col gap-4 w-full max-w-sm">
         <button
-          onClick={() => handleLogin('yandex')}
-          className="px-8 py-3 bg-[#FC3F1D] hover:bg-[#E02E0E] text-white rounded-full font-medium transition-colors flex items-center justify-center gap-2"
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-          </svg>
-          Войти через Яндекс
-        </button>
-
-        <div className="relative flex items-center justify-center">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-zinc-300 dark:border-zinc-700"></div>
-          </div>
-          <div className="relative px-4 bg-white dark:bg-black text-sm text-zinc-500 dark:text-zinc-400">
-            или
-          </div>
-        </div>
-
-        <button
-          onClick={() => handleLogin('lastfm')}
+          onClick={handleLogin}
           className="px-8 py-3 bg-[#D51007] hover:bg-[#B00D06] text-white rounded-full font-medium transition-colors flex items-center justify-center gap-2"
         >
           <svg
