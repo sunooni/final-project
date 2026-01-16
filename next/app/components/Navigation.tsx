@@ -1,35 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import Image from "next/image";
-import {
-  Map,
-  Calendar,
-  TrendingUp,
-  Users,
-  Sparkles,
-  LogOut,
-  Music,
-} from "lucide-react";
-import { cn } from "@/app/lib/utils";
-
-interface NavigationProps {
-  activeTab: string;
-  onTabChange: (tab: string) => void;
-}
-
-interface User {
-  id?: number;
-  username?: string;
-  login?: string;
-  display_name?: string;
-  real_name?: string;
-  realname?: string;
-  provider?: "lastfm";
-  image?: string;
-}
+import { motion } from 'framer-motion';
+import { Map, Calendar, TrendingUp, Users, Sparkles, LogOut } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { cn } from '@/app/lib/utils';
 
 const navItems = [
   { id: 'taste-map', label: 'Карта Вкуса', icon: Map, href: '/taste-map' },
@@ -42,32 +17,6 @@ const navItems = [
 export const Navigation = () => {
   const pathname = usePathname();
   const router = useRouter();
-  const hasCheckedAuth = useRef(false);
-
-  useEffect(() => {
-    // Предотвращаем повторные запросы
-    if (hasCheckedAuth.current) return;
-    hasCheckedAuth.current = true;
-
-    const checkAuth = async () => {
-      try {
-        const response = await fetch("/api/auth/user");
-        if (response.ok) {
-          const data = await response.json();
-          if (data.authenticated && data.user) {
-            setUser(data.user);
-          } else {
-            setUser(null);
-          }
-        }
-      } catch (error) {
-        console.error("Auth check error:", error);
-        setUser(null);
-      }
-    };
-
-    checkAuth();
-  }, []);
 
   const handleLogout = async () => {
     try {
@@ -77,26 +26,25 @@ export const Navigation = () => {
       console.error('Logout error:', error);
     }
   };
-//   const { user, logout } = useUserStore();
 
   return (
-    <motion.nav
+    <motion.nav 
       initial={{ y: -100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
-      className="fixed top-0 left-0 right-0 z-50 glass-card mx-4 mt-4 rounded-2xl"
+      transition={{ duration: 0.6, ease: 'easeOut' }}
+      className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800"
     >
-      <div className="flex items-center justify-between px-6 py-4">
+      <div className="max-w-[1600px] mx-auto flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl nebula-bg flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-primary-foreground" />
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+            <Sparkles className="w-5 h-5 text-white" />
           </div>
-          <span className="text-lg font-semibold text-gradient-nebula">
+          <span className="text-lg font-semibold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
             Soundscape DNA
           </span>
         </div>
 
-        <div className="flex items-center gap-1 bg-muted/50 rounded-xl p-1">
+        <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl p-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -107,15 +55,15 @@ export const Navigation = () => {
                 href={item.href}
                 className={cn(
                   "relative flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300",
-                  isActive
-                    ? "text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                  isActive 
+                    ? "text-white" 
+                    : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
                 )}
               >
                 {isActive && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute inset-0 nebula-bg rounded-lg"
+                    className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg"
                     transition={{ type: "spring", duration: 0.5 }}
                   />
                 )}
@@ -126,41 +74,13 @@ export const Navigation = () => {
           })}
         </div>
 
-        <div className="flex items-center gap-4">
-          {user && (
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-nebula-purple to-nebula-pink flex items-center justify-center text-sm font-medium text-white overflow-hidden relative">
-                {user.image && user.image.trim() ? (
-                  <Image
-                    src={user.image}
-                    alt={getUserDisplayName()}
-                    fill
-                    className="object-cover rounded-full"
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      target.style.display = "none";
-                    }}
-                    unoptimized
-                  />
-                ) : (
-                  <span>{getUserInitial()}</span>
-                )}
-              </div>
-              <span className="text-sm text-muted-foreground hidden lg:inline">
-                {getUserDisplayName()}
-              </span>
-            </div>
-          )}
-          {user && (
-            <button
-              onClick={handleLogout}
-              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-              title="Выйти"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          )}
-        </div>
+        <button 
+          onClick={handleLogout}
+          className="p-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+          title="Выйти"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
       </div>
     </motion.nav>
   );
