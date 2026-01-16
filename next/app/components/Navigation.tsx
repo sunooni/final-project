@@ -1,11 +1,35 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { Map, Calendar, TrendingUp, Users, Sparkles, LogOut } from 'lucide-react';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-// import { useUserStore } from '@/app/stores/userStore';
-import { cn } from '@/app/lib/utils';
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import Image from "next/image";
+import {
+  Map,
+  Calendar,
+  TrendingUp,
+  Users,
+  Sparkles,
+  LogOut,
+  Music,
+} from "lucide-react";
+import { cn } from "@/app/lib/utils";
+
+interface NavigationProps {
+  activeTab: string;
+  onTabChange: (tab: string) => void;
+}
+
+interface User {
+  id?: number;
+  username?: string;
+  login?: string;
+  display_name?: string;
+  real_name?: string;
+  realname?: string;
+  provider?: "lastfm";
+  image?: string;
+}
 
 const navItems = [
   { id: 'taste-map', label: 'Карта Вкуса', icon: Map, href: '/taste-map' },
@@ -18,6 +42,32 @@ const navItems = [
 export const Navigation = () => {
   const pathname = usePathname();
   const router = useRouter();
+  const hasCheckedAuth = useRef(false);
+
+  useEffect(() => {
+    // Предотвращаем повторные запросы
+    if (hasCheckedAuth.current) return;
+    hasCheckedAuth.current = true;
+
+    const checkAuth = async () => {
+      try {
+        const response = await fetch("/api/auth/user");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.authenticated && data.user) {
+            setUser(data.user);
+          } else {
+            setUser(null);
+          }
+        }
+      } catch (error) {
+        console.error("Auth check error:", error);
+        setUser(null);
+      }
+    };
+
+    checkAuth();
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -76,13 +126,41 @@ export const Navigation = () => {
           })}
         </div>
 
-        <button 
-          onClick={handleLogout}
-          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-          title="Выйти"
-        >
-          <LogOut className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-4">
+          {user && (
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-nebula-purple to-nebula-pink flex items-center justify-center text-sm font-medium text-white overflow-hidden relative">
+                {user.image && user.image.trim() ? (
+                  <Image
+                    src={user.image}
+                    alt={getUserDisplayName()}
+                    fill
+                    className="object-cover rounded-full"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      target.style.display = "none";
+                    }}
+                    unoptimized
+                  />
+                ) : (
+                  <span>{getUserInitial()}</span>
+                )}
+              </div>
+              <span className="text-sm text-muted-foreground hidden lg:inline">
+                {getUserDisplayName()}
+              </span>
+            </div>
+          )}
+          {user && (
+            <button
+              onClick={handleLogout}
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              title="Выйти"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
     </motion.nav>
   );
