@@ -2,7 +2,127 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { lastfmConfig } from "@/config/lastfm";
 import { generateApiSignature } from "@/app/lib/lastfm";
-import { callLastfmApi } from "@/app/lib/lastfm";
+import { userApi, lovedTracksApi } from "@/app/lib/api";
+
+/**
+ * Sync loved tracks from Last.fm to database in background
+ * This function runs asynchronously and doesn't block the redirect
+ */
+async function syncLovedTracksInBackground(
+  userId: number,
+  username: string,
+  sessionKey: string,
+  apiKey: string,
+  sharedSecret: string
+): Promise<void> {
+  try {
+    // Get loved tracks from Last.fm API using session key directly
+    const lovedTracksParams: Record<string, string> = {
+      method: "user.getLovedTracks",
+      api_key: apiKey,
+      sk: sessionKey,
+      user: username,
+      limit: "50", // Start with first 50 tracks
+    };
+
+    // Generate signature
+    const lovedTracksSig = generateApiSignature(lovedTracksParams, sharedSecret);
+    lovedTracksParams.api_sig = lovedTracksSig;
+    lovedTracksParams.format = "json";
+
+    // Build URL and make request
+    const lovedTracksUrl = new URL("https://ws.audioscrobbler.com/2.0/");
+    Object.entries(lovedTracksParams).forEach(([key, value]) => {
+      lovedTracksUrl.searchParams.set(key, value);
+    });
+
+    const lovedTracksResponse = await fetch(lovedTracksUrl.toString(), {
+      method: "GET",
+    });
+
+    if (!lovedTracksResponse.ok) {
+      console.error("Failed to fetch loved tracks for sync:", lovedTracksResponse.status);
+      return;
+    }
+
+    const lovedTracksData = await lovedTracksResponse.json();
+
+    if (lovedTracksData.error) {
+      console.error("Last.fm API error when fetching loved tracks:", lovedTracksData.message);
+      return;
+    }
+
+    // Parse tracks array
+    const tracks = Array.isArray(lovedTracksData.lovedtracks?.track)
+      ? lovedTracksData.lovedtracks.track
+      : lovedTracksData.lovedtracks?.track
+      ? [lovedTracksData.lovedtracks.track]
+      : [];
+
+    // If there are more pages, fetch them (up to 10 pages = 500 tracks)
+    let allTracks = [...tracks];
+    const totalPages = parseInt(lovedTracksData.lovedtracks?.["@attr"]?.totalPages || "1");
+    
+    if (totalPages > 1) {
+      for (let page = 2; page <= Math.min(totalPages, 10); page++) {
+        try {
+          const pageParams: Record<string, string> = {
+            method: "user.getLovedTracks",
+            api_key: apiKey,
+            sk: sessionKey,
+            user: username,
+            limit: "50",
+            page: page.toString(),
+          };
+
+          const pageSig = generateApiSignature(pageParams, sharedSecret);
+          pageParams.api_sig = pageSig;
+          pageParams.format = "json";
+
+          const pageUrl = new URL("https://ws.audioscrobbler.com/2.0/");
+          Object.entries(pageParams).forEach(([key, value]) => {
+            pageUrl.searchParams.set(key, value);
+          });
+
+          const pageResponse = await fetch(pageUrl.toString(), {
+            method: "GET",
+          });
+
+          if (pageResponse.ok) {
+            const pageData = await pageResponse.json();
+            if (!pageData.error && pageData.lovedtracks?.track) {
+              const pageTracks = Array.isArray(pageData.lovedtracks.track)
+                ? pageData.lovedtracks.track
+                : [pageData.lovedtracks.track];
+              allTracks = allTracks.concat(pageTracks);
+            }
+          }
+
+          // Small delay to avoid rate limiting
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        } catch (error) {
+          console.error(`Error fetching page ${page} of loved tracks:`, error);
+          // Continue with other pages even if one fails
+        }
+      }
+    }
+
+    // Sync tracks to database
+    if (allTracks.length > 0) {
+      const result = await lovedTracksApi.syncLovedTracks(userId, allTracks);
+      if (result.error) {
+        console.error("Error syncing loved tracks to database:", result.error);
+      } else {
+        console.log(
+          `Successfully synced ${allTracks.length} loved tracks for user ${userId}`
+        );
+      }
+    }
+  } catch (error) {
+    console.error("Error in background loved tracks sync:", error);
+    // Don't throw - this is a background operation
+  }
+}
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -66,13 +186,86 @@ export async function GET(request: NextRequest) {
     const sessionKey = sessionData.session?.key;
     const username = sessionData.session?.name;
 
-    if (!sessionKey) {
+    if (!sessionKey || !username) {
       return NextResponse.redirect(
         new URL("/auth/lastfm?error=no_session_key", request.url)
       );
     }
 
-    // Store session key in httpOnly cookie
+    // Get user info from Last.fm API using session key directly
+    let userInfo: any = null;
+    try {
+      const { apiKey, sharedSecret } = lastfmConfig;
+      
+      // Build parameters for user.getInfo call
+      const userInfoParams: Record<string, string> = {
+        method: "user.getInfo",
+        api_key: apiKey,
+        sk: sessionKey,
+        user: username,
+      };
+
+      // Generate signature
+      const userInfoSig = generateApiSignature(userInfoParams, sharedSecret);
+      userInfoParams.api_sig = userInfoSig;
+      userInfoParams.format = "json";
+
+      // Build URL and make request
+      const userInfoUrl = new URL("https://ws.audioscrobbler.com/2.0/");
+      Object.entries(userInfoParams).forEach(([key, value]) => {
+        userInfoUrl.searchParams.set(key, value);
+      });
+
+      const userInfoResponse = await fetch(userInfoUrl.toString(), {
+        method: "GET",
+      });
+
+      if (userInfoResponse.ok) {
+        const userInfoData = await userInfoResponse.json();
+        if (!userInfoData.error) {
+          userInfo = userInfoData;
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching user info from Last.fm:", error);
+      // Continue even if user info fetch fails
+    }
+
+    // Create or update user in database
+    let userId: number | null = null;
+    try {
+      const userDataToSave = {
+        lastfmUsername: username,
+        lastfmSessionKey: sessionKey,
+        provider: "lastfm" as const,
+        playcount: userInfo?.user?.playcount
+          ? parseInt(userInfo.user.playcount)
+          : 0,
+        country: userInfo?.user?.country || "",
+        realname: userInfo?.user?.realname || "",
+        image:
+          userInfo?.user?.image?.[2]?.["#text"] ||
+          userInfo?.user?.image?.[1]?.["#text"] ||
+          "",
+        url: userInfo?.user?.url || "",
+      };
+
+      const userResult = await userApi.createOrUpdateUser(userDataToSave);
+
+      if (userResult.error) {
+        console.error("Error creating/updating user in database:", userResult.error);
+      } else if (userResult.data) {
+        const savedUser = userResult.data as any;
+        if (savedUser && typeof savedUser.id === 'number') {
+          userId = savedUser.id;
+        }
+      }
+    } catch (error) {
+      console.error("Error in user creation/update process:", error);
+      // Continue even if database operation fails
+    }
+
+    // Store session key and username in cookies
     const cookieStore = await cookies();
     cookieStore.set("lastfm_session_key", sessionKey, {
       httpOnly: true,
@@ -87,6 +280,23 @@ export async function GET(request: NextRequest) {
       sameSite: "lax",
       maxAge: 86400 * 365,
     });
+
+    // Store user_id in cookie if available
+    if (userId) {
+      cookieStore.set("user_id", userId.toString(), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 86400 * 365,
+      });
+
+      // Start background synchronization of loved tracks (don't await to avoid blocking redirect)
+      syncLovedTracksInBackground(userId, username, sessionKey, apiKey, sharedSecret).catch(
+        (error: unknown) => {
+          console.error("Background sync error:", error);
+        }
+      );
+    }
 
     return NextResponse.redirect(new URL("/taste-map", request.url));
   } catch (error) {
