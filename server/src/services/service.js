@@ -30,13 +30,17 @@ class MusicService {
 
   // Artist methods
   async findOrCreateArtist(artistData) {
+    // Normalize empty mbid to null to avoid unique constraint violations
+    const normalizedMbid = artistData.mbid && artistData.mbid.trim() !== '' ? artistData.mbid : null;
+    const normalizedData = { ...artistData, mbid: normalizedMbid };
+
     const [artist] = await this.Artist.findOrCreate({
-      where: artistData.mbid ? { mbid: artistData.mbid } : { name: artistData.name },
-      defaults: artistData,
+      where: normalizedMbid ? { mbid: normalizedMbid } : { name: artistData.name },
+      defaults: normalizedData,
     });
 
-    if (!artist.mbid && artistData.mbid) {
-      await artist.update({ mbid: artistData.mbid });
+    if (!artist.mbid && normalizedMbid) {
+      await artist.update({ mbid: normalizedMbid });
     }
 
     return artist;
@@ -44,11 +48,15 @@ class MusicService {
 
   // Album methods
   async findOrCreateAlbum(albumData, artistId) {
+    // Normalize empty mbid to null to avoid unique constraint violations
+    const normalizedMbid = albumData.mbid && albumData.mbid.trim() !== '' ? albumData.mbid : null;
+    const normalizedData = { ...albumData, mbid: normalizedMbid, artistId };
+
     const [album] = await this.Album.findOrCreate({
-      where: albumData.mbid
-        ? { mbid: albumData.mbid }
+      where: normalizedMbid
+        ? { mbid: normalizedMbid }
         : { title: albumData.title, artistId },
-      defaults: { ...albumData, artistId },
+      defaults: normalizedData,
     });
 
     return album;
@@ -56,11 +64,15 @@ class MusicService {
 
   // Track methods
   async findOrCreateTrack(trackData, artistId, albumId = null) {
+    // Normalize empty mbid to null to avoid unique constraint violations
+    const normalizedMbid = trackData.mbid && trackData.mbid.trim() !== '' ? trackData.mbid : null;
+    const normalizedData = { ...trackData, mbid: normalizedMbid, artistId, albumId };
+
     const [track] = await this.Track.findOrCreate({
-      where: trackData.mbid
-        ? { mbid: trackData.mbid }
+      where: normalizedMbid
+        ? { mbid: normalizedMbid }
         : { name: trackData.name, artistId },
-      defaults: { ...trackData, artistId, albumId },
+      defaults: normalizedData,
     });
 
     return track;
@@ -134,55 +146,60 @@ class MusicService {
     const results = [];
 
     for (const trackData of tracksData) {
-      // Find or create artist
-      const artist = await this.findOrCreateArtist({
-        name: trackData.artist['#text'] || trackData.artist.name,
-        mbid: trackData.artist.mbid,
-        url: trackData.artist.url || trackData.url,
-      });
+      try {
+        // Find or create artist
+        const artist = await this.findOrCreateArtist({
+          name: trackData.artist['#text'] || trackData.artist.name,
+          mbid: trackData.artist.mbid,
+          url: trackData.artist.url || trackData.url,
+        });
 
-      // Find or create album if exists
-      let album = null;
-      if (trackData.album) {
-        const albumData = Array.isArray(trackData.album) ? trackData.album[0] : trackData.album;
-        album = await this.findOrCreateAlbum(
+        // Find or create album if exists
+        let album = null;
+        if (trackData.album) {
+          const albumData = Array.isArray(trackData.album) ? trackData.album[0] : trackData.album;
+          album = await this.findOrCreateAlbum(
+            {
+              title: albumData.title || albumData['#text'],
+              mbid: albumData.mbid,
+              url: albumData.url,
+              image: Array.isArray(albumData.image)
+                ? albumData.image.find((img) => img.size === 'medium')?.['#text'] ||
+                  albumData.image[albumData.image.length - 1]?.['#text']
+                : albumData.image,
+            },
+            artist.id
+          );
+        }
+
+        // Find or create track
+        const track = await this.findOrCreateTrack(
           {
-            title: albumData.title || albumData['#text'],
-            mbid: albumData.mbid,
-            url: albumData.url,
-            image: Array.isArray(albumData.image)
-              ? albumData.image.find((img) => img.size === 'medium')?.['#text'] ||
-                albumData.image[albumData.image.length - 1]?.['#text']
-              : albumData.image,
+            name: trackData.name,
+            mbid: trackData.mbid,
+            url: trackData.url,
+            image: Array.isArray(trackData.image)
+              ? trackData.image.find((img) => img.size === 'medium')?.['#text'] ||
+                trackData.image[trackData.image.length - 1]?.['#text']
+              : trackData.image,
+            duration: trackData.duration,
           },
-          artist.id
+          artist.id,
+          album?.id
         );
+
+        // Add to loved tracks
+        const lovedTrack = await this.addLovedTrack(
+          userId,
+          track.id,
+          trackData.date ? new Date(parseInt(trackData.date.uts) * 1000) : null
+        );
+
+        results.push(lovedTrack);
+      } catch (error) {
+        console.error(`Error syncing track "${trackData.name}" by "${trackData.artist['#text'] || trackData.artist.name}":`, error.message);
+        // Continue with other tracks even if one fails
       }
-
-      // Find or create track
-      const track = await this.findOrCreateTrack(
-        {
-          name: trackData.name,
-          mbid: trackData.mbid,
-          url: trackData.url,
-          image: Array.isArray(trackData.image)
-            ? trackData.image.find((img) => img.size === 'medium')?.['#text'] ||
-              trackData.image[trackData.image.length - 1]?.['#text']
-            : trackData.image,
-          duration: trackData.duration,
-        },
-        artist.id,
-        album?.id
-      );
-
-      // Add to loved tracks
-      const lovedTrack = await this.addLovedTrack(
-        userId,
-        track.id,
-        trackData.date ? new Date(parseInt(trackData.date.uts) * 1000) : null
-      );
-
-      results.push(lovedTrack);
     }
 
     return results;
@@ -192,54 +209,59 @@ class MusicService {
     const results = [];
 
     for (const trackData of tracksData) {
-      // Find or create artist
-      const artist = await this.findOrCreateArtist({
-        name: trackData.artist['#text'] || trackData.artist.name,
-        mbid: trackData.artist.mbid,
-        url: trackData.artist.url || trackData.url,
-      });
+      try {
+        // Find or create artist
+        const artist = await this.findOrCreateArtist({
+          name: trackData.artist['#text'] || trackData.artist.name,
+          mbid: trackData.artist.mbid,
+          url: trackData.artist.url || trackData.url,
+        });
 
-      // Find or create album if exists
-      let album = null;
-      if (trackData.album) {
-        const albumData = Array.isArray(trackData.album) ? trackData.album[0] : trackData.album;
-        album = await this.findOrCreateAlbum(
+        // Find or create album if exists
+        let album = null;
+        if (trackData.album) {
+          const albumData = Array.isArray(trackData.album) ? trackData.album[0] : trackData.album;
+          album = await this.findOrCreateAlbum(
+            {
+              title: albumData.title || albumData['#text'],
+              mbid: albumData.mbid,
+              url: albumData.url,
+              image: Array.isArray(albumData.image)
+                ? albumData.image.find((img) => img.size === 'medium')?.['#text'] ||
+                  albumData.image[albumData.image.length - 1]?.['#text']
+                : albumData.image,
+            },
+            artist.id
+          );
+        }
+
+        // Find or create track
+        const track = await this.findOrCreateTrack(
           {
-            title: albumData.title || albumData['#text'],
-            mbid: albumData.mbid,
-            url: albumData.url,
-            image: Array.isArray(albumData.image)
-              ? albumData.image.find((img) => img.size === 'medium')?.['#text'] ||
-                albumData.image[albumData.image.length - 1]?.['#text']
-              : albumData.image,
+            name: trackData.name,
+            mbid: trackData.mbid,
+            url: trackData.url,
+            image: Array.isArray(trackData.image)
+              ? trackData.image.find((img) => img.size === 'medium')?.['#text'] ||
+                trackData.image[trackData.image.length - 1]?.['#text']
+              : trackData.image,
+            duration: trackData.duration,
           },
-          artist.id
+          artist.id,
+          album?.id
         );
+
+        // Add recent track
+        const playedAt = trackData.date
+          ? new Date(parseInt(trackData.date.uts) * 1000)
+          : new Date();
+        const recentTrack = await this.addRecentTrack(userId, track.id, playedAt);
+
+        results.push(recentTrack);
+      } catch (error) {
+        console.error(`Error syncing recent track "${trackData.name}" by "${trackData.artist['#text'] || trackData.artist.name}":`, error.message);
+        // Continue with other tracks even if one fails
       }
-
-      // Find or create track
-      const track = await this.findOrCreateTrack(
-        {
-          name: trackData.name,
-          mbid: trackData.mbid,
-          url: trackData.url,
-          image: Array.isArray(trackData.image)
-            ? trackData.image.find((img) => img.size === 'medium')?.['#text'] ||
-              trackData.image[trackData.image.length - 1]?.['#text']
-            : trackData.image,
-          duration: trackData.duration,
-        },
-        artist.id,
-        album?.id
-      );
-
-      // Add recent track
-      const playedAt = trackData.date
-        ? new Date(parseInt(trackData.date.uts) * 1000)
-        : new Date();
-      const recentTrack = await this.addRecentTrack(userId, track.id, playedAt);
-
-      results.push(recentTrack);
     }
 
     return results;
