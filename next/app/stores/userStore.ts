@@ -13,12 +13,21 @@ interface Genre {
   color?: string;
 }
 
+export interface ListeningDay {
+  date: string;
+  tracks: number;
+  mood: 'joy' | 'energy' | 'calm' | 'sad' | 'love';
+  intensity: number; // 0-1
+}
+
 interface UserStore {
   topGenres: Genre[];
   topArtists: Artist[];
+  listeningHistory: ListeningDay[];
   dataTimestamp?: number;
   setGalaxyData: (genres: Genre[]) => void;
   clearGalaxyData: () => void;
+  setListeningHistory: (history: ListeningDay[]) => void;
 }
 
 // Pastel colors for planets
@@ -35,9 +44,34 @@ const pastelColors = [
   '#E8D5C4', // pastel beige
 ];
 
+// Generate mock listening history for the past year
+const generateMockListeningHistory = (): ListeningDay[] => {
+  const history: ListeningDay[] = [];
+  const today = new Date();
+  const oneYearAgo = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
+  
+  const moods: Array<'joy' | 'energy' | 'calm' | 'sad' | 'love'> = ['joy', 'energy', 'calm', 'sad', 'love'];
+  
+  for (let d = new Date(oneYearAgo); d <= today; d.setDate(d.getDate() + 1)) {
+    const tracks = Math.floor(Math.random() * 50) + 5; // 5-55 tracks per day
+    const mood = moods[Math.floor(Math.random() * moods.length)];
+    const intensity = Math.random(); // 0-1
+    
+    history.push({
+      date: d.toISOString().split('T')[0],
+      tracks,
+      mood,
+      intensity,
+    });
+  }
+  
+  return history;
+};
+
 export const useUserStore = create<UserStore>((set) => ({
   topGenres: [],
   topArtists: [],
+  listeningHistory: generateMockListeningHistory(),
   dataTimestamp: undefined,
   setGalaxyData: (genres: Genre[]) => {
     // Assign pastel colors to genres
@@ -71,5 +105,8 @@ export const useUserStore = create<UserStore>((set) => ({
   },
   clearGalaxyData: () => {
     set({ topGenres: [], topArtists: [], dataTimestamp: undefined });
+  },
+  setListeningHistory: (history: ListeningDay[]) => {
+    set({ listeningHistory: history });
   },
 }));

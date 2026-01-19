@@ -10,6 +10,16 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  /* Emotion colors */
+  --color-emotion-joy: #FFD700;
+  --color-emotion-energy: #FF6B35;
+  --color-emotion-calm: #4ECDC4;
+  --color-emotion-sad: #6C5CE7;
+  --color-emotion-love: #FD79A8;
+  
+  /* Gradients */
+  --gradient-nebula: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -23,4 +33,46 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Emotion background classes */
+.bg-emotion-joy { background-color: var(--color-emotion-joy); }
+.bg-emotion-energy { background-color: var(--color-emotion-energy); }
+.bg-emotion-calm { background-color: var(--color-emotion-calm); }
+.bg-emotion-sad { background-color: var(--color-emotion-sad); }
+.bg-emotion-love { background-color: var(--color-emotion-love); }
+
+/* Gradient text */
+.text-gradient-nebula {
+  background: var(--gradient-nebula);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glass card effect */
+.glass-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+@media (prefers-color-scheme: dark) {
+  .glass-card {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Muted colors */
+.text-muted-foreground {
+  color: rgba(var(--foreground), 0.6);
+}
+
+.bg-muted {
+  background-color: rgba(var(--foreground), 0.1);
+}
+
+.border-border {
+  border-color: rgba(var(--foreground), 0.2);
 }
