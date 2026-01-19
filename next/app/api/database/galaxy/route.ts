@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { userApi, lovedTracksApi } from '@/app/lib/api';
+import { callLastfmApi, getLastfmUsername } from '@/app/lib/lastfm';
 import { lastfmConfig } from '@/config/lastfm';
 
 interface Track {
@@ -38,82 +37,54 @@ interface Genre {
 
 export async function GET(request: Request) {
   try {
-    console.log('Database Galaxy API route called');
-    const cookieStore = await cookies();
+    console.log('Galaxy API route called');
+    const username = await getLastfmUsername();
     
-    const lastfmUsername = cookieStore.get('lastfm_username');
-    const userIdCookie = cookieStore.get('user_id');
-    
-    if (!lastfmUsername) {
+    if (!username) {
       console.log('No username found, returning 401');
       return NextResponse.json(
         { error: 'Not authenticated with Last.fm' },
         { status: 401 }
       );
     }
+    
+    console.log(`Fetching galaxy data for user: ${username}`);
 
-    // Get user from database
-    const userResult = await userApi.getUser(lastfmUsername.value);
-    if (!userResult.data) {
-      return NextResponse.json(
-        { error: 'User not found in database' },
-        { status: 404 }
-      );
-    }
-
-    const userId = userResult.data.id;
-    console.log(`Fetching galaxy data from database for user ID: ${userId}`);
-
-    // Get all loved tracks from database (fetch multiple pages)
+    // Get all loved tracks (fetch multiple pages)
     let allTracks: Track[] = [];
-    let offset = 0;
+    let page = 1;
     const limit = 50;
     let hasMore = true;
 
-    while (hasMore) {
-      const tracksResult = await lovedTracksApi.getUserLovedTracks(userId, limit, offset);
-      
-      if (tracksResult.error || !tracksResult.data) {
-        console.error('Error fetching loved tracks:', tracksResult.error);
-        break;
-      }
+    while (hasMore && page <= 10) { // Limit to 10 pages (500 tracks max)
+      const data = await callLastfmApi('user.getLovedTracks', {
+        user: username,
+        page: page.toString(),
+        limit: limit.toString(),
+      });
 
-      const tracks = tracksResult.data.tracks || [];
-      if (tracks.length === 0) break;
+      const tracks = data.lovedtracks?.track;
+      if (!tracks) break;
 
-      // Convert database tracks to the format expected by galaxy processing
-      const convertedTracks: Track[] = tracks.map((lt: any) => ({
-        name: lt.track?.name || '',
-        artist: {
-          '#text': lt.track?.artist?.name || '',
-          mbid: lt.track?.artist?.mbid || undefined,
-        },
-        url: lt.track?.url || '',
-      }));
+      const trackArray = Array.isArray(tracks) ? tracks : [tracks];
+      allTracks = allTracks.concat(trackArray);
 
-      allTracks = allTracks.concat(convertedTracks);
-
-      const total = tracksResult.data.total || 0;
-      hasMore = offset + limit < total;
-      offset += limit;
-
-      // Limit to prevent excessive requests
-      if (allTracks.length >= 500) {
-        break;
-      }
+      const totalPages = parseInt(data.lovedtracks?.['@attr']?.totalPages || '1');
+      hasMore = page < totalPages;
+      page++;
     }
 
     if (allTracks.length === 0) {
       return NextResponse.json({ genres: [] });
     }
 
-    console.log(`Processing ${allTracks.length} tracks from database`);
+    console.log(`Processing ${allTracks.length} tracks`);
 
     // Group tracks by artist
     const artistTracks: Record<string, { tracks: Track[]; url: string }> = {};
     for (const track of allTracks) {
       // Handle different possible structures of artist data
-      const artistName = track.artist?.['#text'] || track.artist?.name || '';
+      const artistName = track.artist?.['#text'] || track.artist?.name || track.artist;
       
       // Skip tracks without valid artist name
       if (!artistName || typeof artistName !== 'string' || artistName.trim() === '') {
@@ -247,7 +218,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ genres });
   } catch (error) {
-    console.error('Error fetching galaxy data from database:', error);
+    console.error('Error fetching galaxy data:', error);
     return NextResponse.json(
       { 
         error: error instanceof Error ? error.message : 'Failed to fetch galaxy data' 
@@ -256,3 +227,4 @@ export async function GET(request: Request) {
     );
   }
 }
+
