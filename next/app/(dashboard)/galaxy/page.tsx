@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { GalaxyView } from '@/app/components/GalaxyView';
+import { GalaxyView } from '@/app/components/Taste/GalaxyView';
 
 export default function GalaxyPage() {
   return (

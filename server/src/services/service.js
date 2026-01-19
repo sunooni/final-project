@@ -30,13 +30,19 @@ class MusicService {
 
   // Artist methods
   async findOrCreateArtist(artistData) {
+    // Convert empty mbid strings to null to avoid unique constraint violations
+    const normalizedArtistData = {
+      ...artistData,
+      mbid: artistData.mbid && artistData.mbid.trim() !== '' ? artistData.mbid : null,
+    };
+
     const [artist] = await this.Artist.findOrCreate({
-      where: artistData.mbid ? { mbid: artistData.mbid } : { name: artistData.name },
-      defaults: artistData,
+      where: normalizedArtistData.mbid ? { mbid: normalizedArtistData.mbid } : { name: normalizedArtistData.name },
+      defaults: normalizedArtistData,
     });
 
-    if (!artist.mbid && artistData.mbid) {
-      await artist.update({ mbid: artistData.mbid });
+    if (!artist.mbid && normalizedArtistData.mbid) {
+      await artist.update({ mbid: normalizedArtistData.mbid });
     }
 
     return artist;
@@ -44,11 +50,17 @@ class MusicService {
 
   // Album methods
   async findOrCreateAlbum(albumData, artistId) {
+    // Convert empty mbid strings to null to avoid unique constraint violations
+    const normalizedAlbumData = {
+      ...albumData,
+      mbid: albumData.mbid && albumData.mbid.trim() !== '' ? albumData.mbid : null,
+    };
+
     const [album] = await this.Album.findOrCreate({
-      where: albumData.mbid
-        ? { mbid: albumData.mbid }
-        : { title: albumData.title, artistId },
-      defaults: { ...albumData, artistId },
+      where: normalizedAlbumData.mbid
+        ? { mbid: normalizedAlbumData.mbid }
+        : { title: normalizedAlbumData.title, artistId },
+      defaults: { ...normalizedAlbumData, artistId },
     });
 
     return album;
@@ -56,11 +68,17 @@ class MusicService {
 
   // Track methods
   async findOrCreateTrack(trackData, artistId, albumId = null) {
+    // Convert empty mbid strings to null to avoid unique constraint violations
+    const normalizedTrackData = {
+      ...trackData,
+      mbid: trackData.mbid && trackData.mbid.trim() !== '' ? trackData.mbid : null,
+    };
+
     const [track] = await this.Track.findOrCreate({
-      where: trackData.mbid
-        ? { mbid: trackData.mbid }
-        : { name: trackData.name, artistId },
-      defaults: { ...trackData, artistId, albumId },
+      where: normalizedTrackData.mbid
+        ? { mbid: normalizedTrackData.mbid }
+        : { name: normalizedTrackData.name, artistId },
+      defaults: { ...normalizedTrackData, artistId, albumId },
     });
 
     return track;

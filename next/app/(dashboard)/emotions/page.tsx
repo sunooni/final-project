@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { EmotionalCalendar } from '@/app/components/EmotionalCalendar';
+import { EmotionalCalendar } from '@/app/components/Emotion/EmotionalCalendar';
 
 export default function EmotionsPage() {
   return (

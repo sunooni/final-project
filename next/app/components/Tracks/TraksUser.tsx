@@ -104,12 +104,17 @@ export const TraksUser = () => {
           setShowTracks(true);
           setUseDatabase(true);
           setLovedTracks([]);
+        } else {
+          // Если треков нет в БД, показываем пустой список
+          setDbTracks([]);
+          setShowTracks(true);
+          setUseDatabase(true);
+          setLovedTracks([]);
         }
-        // Если треков нет в БД, ничего не делаем (не показываем кнопку)
       }
     } catch (err) {
       console.error("Ошибка загрузки треков из БД:", err);
-      // При ошибке ничего не делаем
+      setError("Ошибка при загрузке треков из базы данных");
     } finally {
       setLoading(false);
     }
@@ -122,121 +127,55 @@ export const TraksUser = () => {
     }
   }, [userId, loadTracksFromDB]);
 
-  const fetchLovedTracks = async () => {
-    if (!isAuthenticated) {
+  const syncTracksFromLastfm = async () => {
+    if (!isAuthenticated || !userId) {
       setError("Необходима авторизация через Last.fm");
       return;
     }
 
     setLoading(true);
     setError(null);
-    setShowTracks(false); // Скрываем треки до завершения синхронизации
 
     try {
-      // Если есть userId, сначала проверяем БД
-      if (userId) {
-        try {
-          const apiUrl =
-            process.env.NEXT_PUBLIC_API_URL ||
-            "http://localhost:3001/api/music";
-          const dbResponse = await fetch(
-            `${apiUrl}/users/${userId}/loved-tracks?limit=50`
-          );
+      // Синхронизируем треки из Last.fm с БД
+      const syncResponse = await fetch("/api/sync/loved-tracks", {
+        method: "POST",
+      });
 
-          if (dbResponse.ok) {
-            const dbData = await dbResponse.json();
-            if (
-              dbData.tracks &&
-              Array.isArray(dbData.tracks) &&
-              dbData.tracks.length > 0
-            ) {
-              // Если в БД есть треки, показываем их
-              setDbTracks(dbData.tracks);
-              setShowTracks(true);
-              setUseDatabase(true);
-              setLovedTracks([]);
-              setLoading(false);
-              return;
-            }
-          }
-        } catch (dbErr) {
-          console.log("Не удалось загрузить из БД, синхронизируем:", dbErr);
-        }
-      }
-
-      // Получаем треки из Last.fm
-      const response = await fetch("/api/lastfm/user/loved-tracks?limit=50");
-      const data: LovedTracksResponse = await response.json();
-
-      if (data.error) {
-        setError(data.error);
+      if (!syncResponse.ok) {
+        const errorData = await syncResponse.json();
+        setError(errorData.error || "Ошибка при синхронизации треков");
         setLoading(false);
         return;
       }
 
-      if (!data.lovedtracks?.track) {
-        setError("Треки не найдены");
-        setLoading(false);
-        return;
-      }
+      const syncData = await syncResponse.json();
+      console.log("Треки синхронизированы с БД:", syncData);
 
-      // Last.fm может вернуть один трек как объект или массив треков
-      const tracks = Array.isArray(data.lovedtracks.track)
-        ? data.lovedtracks.track
-        : [data.lovedtracks.track];
+      // После синхронизации загружаем обновленные данные из БД
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/music";
+      const dbResponse = await fetch(
+        `${apiUrl}/users/${userId}/loved-tracks?limit=50`
+      );
 
-      // Если есть userId, синхронизируем с БД перед показом
-      if (userId) {
-        try {
-          const syncResponse = await fetch("/api/sync/loved-tracks", {
-            method: "POST",
-          });
-
-          if (syncResponse.ok) {
-            const syncData = await syncResponse.json();
-            console.log("Треки синхронизированы с БД:", syncData);
-
-            // После синхронизации загружаем из БД
-            const apiUrl =
-              process.env.NEXT_PUBLIC_API_URL ||
-              "http://localhost:3001/api/music";
-            const dbResponse = await fetch(
-              `${apiUrl}/users/${userId}/loved-tracks?limit=50`
-            );
-
-            if (dbResponse.ok) {
-              const dbData = await dbResponse.json();
-              if (
-                dbData.tracks &&
-                Array.isArray(dbData.tracks) &&
-                dbData.tracks.length > 0
-              ) {
-                // Показываем треки из БД
-                setDbTracks(dbData.tracks);
-                setShowTracks(true);
-                setUseDatabase(true);
-                setLovedTracks([]);
-                setLoading(false);
-                return;
-              }
-            }
-          }
-        } catch (syncErr) {
-          console.error("Ошибка синхронизации:", syncErr);
-          // Если синхронизация не удалась, показываем из Last.fm
+      if (dbResponse.ok) {
+        const dbData = await dbResponse.json();
+        if (dbData.tracks && Array.isArray(dbData.tracks)) {
+          // Показываем треки из БД (даже если список пустой)
+          setDbTracks(dbData.tracks);
+          setShowTracks(true);
+          setUseDatabase(true);
+          setLovedTracks([]);
         }
+      } else {
+        setError("Не удалось загрузить обновленные треки из базы данных");
       }
-
-      // Если нет userId или синхронизация не удалась, показываем из Last.fm
-      setLovedTracks(tracks);
-      setShowTracks(true);
-      setUseDatabase(false);
-      setDbTracks([]);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Ошибка при загрузке треков"
+        err instanceof Error ? err.message : "Ошибка при синхронизации треков"
       );
-      console.error("Error fetching loved tracks:", err);
+      console.error("Error syncing loved tracks:", err);
     } finally {
       setLoading(false);
     }
@@ -258,9 +197,9 @@ export const TraksUser = () => {
           </div>
         )}
 
-        {isAuthenticated && !showTracks && (
+        {isAuthenticated && (
           <button
-            onClick={fetchLovedTracks}
+            onClick={syncTracksFromLastfm}
             disabled={loading}
             className="px-6 py-3 bg-[#D51007] hover:bg-[#B00D06] disabled:bg-zinc-400 disabled:cursor-not-allowed text-white rounded-full font-medium transition-colors flex items-center gap-2"
           >
@@ -286,7 +225,7 @@ export const TraksUser = () => {
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   ></path>
                 </svg>
-                Загрузка и синхронизация...
+                Синхронизация...
               </>
             ) : (
               <>
@@ -294,12 +233,16 @@ export const TraksUser = () => {
                   width="20"
                   height="20"
                   viewBox="0 0 24 24"
-                  fill="currentColor"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                   xmlns="http://www.w3.org/2000/svg"
                 >
-                  <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                  <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.3" />
                 </svg>
-                Показать любимые треки
+                Обновить треки из Last.fm
               </>
             )}
           </button>
@@ -326,12 +269,6 @@ export const TraksUser = () => {
                   Любимые треки (
                   {useDatabase ? dbTracks.length : lovedTracks.length})
                 </h2>
-                <button
-                  onClick={() => setShowTracks(false)}
-                  className="px-4 py-2 text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                >
-                  Скрыть
-                </button>
               </div>
 
               <div className="grid gap-3">
@@ -407,9 +344,13 @@ export const TraksUser = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="p-8 text-center text-zinc-600 dark:text-zinc-400"
+              className="p-8 text-center"
             >
-              <p>У вас пока нет любимых треков на Last.fm</p>
+              <p className="text-zinc-600 dark:text-zinc-400 mb-4">
+                {useDatabase
+                  ? "В базе данных пока нет любимых треков. Нажмите кнопку выше, чтобы синхронизировать данные из Last.fm."
+                  : "У вас пока нет любимых треков на Last.fm"}
+              </p>
             </motion.div>
           )}
       </AnimatePresence>

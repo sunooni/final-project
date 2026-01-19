@@ -54,11 +54,93 @@ export const TasteMap = () => {
     if (!dataFetchedRef.current) {
       dataFetchedRef.current = true;
 
+      const getUserId = async (): Promise<string | null> => {
+        try {
+          const response = await fetch("/api/auth/user");
+          const data = await response.json();
+          return data.user?.id?.toString() || null;
+        } catch {
+          return null;
+        }
+      };
+
+      const waitForSyncCompletion = async (userId: string): Promise<number> => {
+        // Проверяем количество треков в БД и ждем стабилизации
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/music";
+        
+        let previousCount = -1; // Начальное значение -1 для первой итерации
+        let stableIterations = 0;
+        const maxWaitTime = 30000; // Максимальное время ожидания: 30 секунд
+        const checkInterval = 1000; // Проверяем каждую секунду
+        const stableIterationsRequired = 3; // Количество стабильных проверок подряд
+        const startTime = Date.now();
+        let firstCheck = true;
+
+        while (Date.now() - startTime < maxWaitTime) {
+          try {
+            const response = await fetch(
+              `${apiUrl}/users/${userId}/loved-tracks?limit=1&offset=0`
+            );
+
+            if (response.ok) {
+              const data = await response.json();
+              const currentCount = data.total || 0;
+
+              if (firstCheck) {
+                // Первая проверка - просто запоминаем количество
+                previousCount = currentCount;
+                firstCheck = false;
+                console.log(`Initial tracks count: ${currentCount}`);
+                
+                // Если треков 0, ждем немного, чтобы дать время синхронизации начаться
+                if (currentCount === 0) {
+                  console.log("No tracks found, waiting for sync to start...");
+                  await new Promise((resolve) => setTimeout(resolve, 3000)); // Ждем 3 секунды
+                  continue; // Пропускаем эту итерацию и проверяем снова
+                }
+              } else if (currentCount === previousCount) {
+                // Количество не изменилось
+                stableIterations++;
+                console.log(`Tracks count stable (${stableIterations}/${stableIterationsRequired}): ${currentCount}`);
+                if (stableIterations >= stableIterationsRequired) {
+                  // Количество стабилизировалось, синхронизация завершена
+                  console.log(`Sync completed. Total tracks: ${currentCount}`);
+                  return currentCount;
+                }
+              } else {
+                // Количество изменилось, сбрасываем счетчик стабильности
+                stableIterations = 0;
+                previousCount = currentCount;
+                console.log(`Tracks count changed: ${currentCount}`);
+              }
+            }
+          } catch (error) {
+            console.error("Error checking sync status:", error);
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, checkInterval));
+        }
+
+        // Если время истекло, возвращаем последнее известное количество
+        console.log(`Sync wait timeout. Final count: ${previousCount}`);
+        return previousCount >= 0 ? previousCount : 0;
+      };
+
       const fetchGalaxyData = async () => {
         try {
           setLoading(true);
           setError(null);
-          const response = await fetch("/api/lastfm/galaxy");
+
+          // Ждем завершения синхронизации перед загрузкой данных
+          const userId = await getUserId();
+          if (userId) {
+            setError("Ожидание завершения синхронизации треков...");
+            await waitForSyncCompletion(userId);
+            setError(null);
+          }
+
+          const response = await fetch("/api/database/galaxy");
 
           if (!response.ok) {
             if (response.status === 401) {

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
-import LastfmAuthButton from "../../components/LastfmAuthButton";
-import AuthStatus from "../../components/AuthStatus";
+import LastfmAuthButton from "../../components/Auth/LastfmAuthButton";
+import AuthStatus from "../../components/Auth/AuthStatus";
 
 export default function LastfmAuthPage() {
   return (
