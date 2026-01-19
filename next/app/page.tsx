@@ -7,7 +7,7 @@ export default async function Home() {
 
   // Если пользователь авторизован, перенаправляем на дашборд
   if (lastfmSession) {
-    redirect('/taste-map');
+    redirect('/tracks');
   }
 
   // Если не авторизован, перенаправляем на страницу авторизации

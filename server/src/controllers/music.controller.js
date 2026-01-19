@@ -103,6 +103,32 @@ class MusicController {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   };
+
+  // AI recommendations endpoint
+  getTrackRecommendations = async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { limit = 5 } = req.query;
+      
+      console.log('=== getTrackRecommendations called ===');
+      console.log('UserId:', userId, 'Limit:', limit);
+      
+      // Dynamic import for ES module
+      const { getTrackRecommedations } = await import('../services/aiService.mjs');
+      
+      console.log('Function imported, calling...');
+      const recommendations = await getTrackRecommedations(
+        parseInt(userId),
+        parseInt(limit)
+      );
+      
+      console.log('Recommendations received, sending response');
+      res.json({ recommendations });
+    } catch (error) {
+      console.error('Error getting recommendations:', error);
+      res.status(500).json({ message: 'Server error', error: error.message });
+    }
+  };
 }
 
 const musicController = new MusicController(serviceInstance);

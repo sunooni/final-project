@@ -14,4 +14,7 @@ musicRouter.route('/users/:userId/loved-tracks/sync').post(musicController.syncL
 musicRouter.route('/users/:userId/recent-tracks').get(musicController.getUserRecentTracks);
 musicRouter.route('/users/:userId/recent-tracks/sync').post(musicController.syncRecentTracks);
 
+// AI recommendations route
+musicRouter.route('/users/:userId/recommendations').get(musicController.getTrackRecommendations);
+
 module.exports = musicRouter;
