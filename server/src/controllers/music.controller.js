@@ -129,6 +129,40 @@ class MusicController {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   };
+
+  // AI chat endpoint
+  chat = async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { message, conversationHistory = [] } = req.body;
+
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ message: 'Message is required and must be a string' });
+      }
+
+      if (message.length > 1000) {
+        return res.status(400).json({ message: 'Message is too long (max 1000 characters)' });
+      }
+
+      if (!Array.isArray(conversationHistory)) {
+        return res.status(400).json({ message: 'conversationHistory must be an array' });
+      }
+
+      // Dynamic import for ES module
+      const { chatWithAI } = await import('../services/aiService.mjs');
+      
+      const response = await chatWithAI(
+        message,
+        userId ? parseInt(userId) : null,
+        conversationHistory
+      );
+
+      res.json({ response });
+    } catch (error) {
+      console.error('Error in chat:', error);
+      res.status(500).json({ message: 'Server error', error: error.message });
+    }
+  };
 }
 
 const musicController = new MusicController(serviceInstance);

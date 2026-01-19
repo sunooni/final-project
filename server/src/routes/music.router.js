@@ -17,4 +17,8 @@ musicRouter.route('/users/:userId/recent-tracks/sync').post(musicController.sync
 // AI recommendations route
 musicRouter.route('/users/:userId/recommendations').get(musicController.getTrackRecommendations);
 
+// AI chat route
+musicRouter.route('/users/:userId/chat').post(musicController.chat);
+musicRouter.route('/chat').post(musicController.chat);
+
 module.exports = musicRouter;
