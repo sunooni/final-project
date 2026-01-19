@@ -1,13 +1,50 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAssistantStore } from "@/app/stores/useAssistantStore";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+
+const firstMes = 'Привет! 👋 Я твой музыкальный ассистент. Спроси меня о своих вкусах, рекомендациях или статистике!'
+
 export default function Assistant() {
-  const { isOpen, toggleAssistant } = useAssistantStore();
+  const { isOpen, toggleAssistant, messages, isLoading, sendMessage, addMessage } = useAssistantStore();
+  const [inputValue, setInputValue] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+useEffect(() => {
+  if (isOpen && messages.length === 0) {
+    addMessage({
+      role: 'assistant',
+      content: firstMes,
+    });
+  }
+}, [isOpen, messages.length, addMessage]);
+
+useEffect(() => {
+  messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+}, [messages]);
+
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  const trimmedValue = inputValue.trim();
+
+  if (!trimmedValue || isLoading) return;
+
+  setInputValue("");
+  await sendMessage(trimmedValue);
+
+};
+
+const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    handleSubmit(e);
+  }
+};
+
 
   return (
     /* Основной контейнер: фиксируем в нижнем правом углу */
@@ -57,19 +94,73 @@ export default function Assistant() {
 
             {/* Область сообщений */}
             <div className="flex-1 p-4 overflow-y-auto bg-white dark:bg-zinc-900">
-              <div className="bg-zinc-100 dark:bg-zinc-800 p-3 rounded-lg text-sm text-zinc-800 dark:text-zinc-200 inline-block max-w-[85%]">
-                Привет! 👋 Я твой музыкальный ассистент. Спроси меня о своих
-                вкусах, рекомендациях или статистике!
+              <div className="space-y-3">
+                {messages.map((message) => (
+                  <motion.div
+                    key={message.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[85%] p-3 rounded-lg text-sm ${
+                        message.role === 'user'
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200'
+                      }`}
+                    >
+                      <div className="whitespace-pre-wrap break-words">
+                        {message.content}
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+                
+                {/* Индикатор загрузки */}
+                {isLoading && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex justify-start"
+                  >
+                    <div className="bg-zinc-100 dark:bg-zinc-800 p-3 rounded-lg text-sm text-zinc-800 dark:text-zinc-200">
+                      <div className="flex items-center gap-2">
+                        <div className="flex gap-1">
+                          <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                          <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                          <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                        </div>
+                        <span>Печатает...</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+                
+                {/* Якорь для скролла */}
+                <div ref={messagesEndRef} />
               </div>
             </div>
 
-            {/* Ввод сообщения */}
+ {/* Форма ввода */}
             <div className="p-4 border-t dark:border-zinc-800 bg-white dark:bg-zinc-900">
-              <input
-                type="text"
-                placeholder="Спроси о чем-нибудь..."
-                className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-              />
+              <form onSubmit={handleSubmit} className="flex gap-2">
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Спроси о чем-нибудь..."
+                  disabled={isLoading}
+                  className="flex-1 bg-zinc-50 dark:bg-zinc-800 border-none rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 outline-none focus:ring-2 focus:ring-indigo-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <button
+                  type="submit"
+                  disabled={!inputValue.trim() || isLoading}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-zinc-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-medium"
+                >
+                  Отправить
+                </button>
+              </form>
             </div>
           </motion.div>
         )}
