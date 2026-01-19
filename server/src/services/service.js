@@ -48,15 +48,17 @@ class MusicService {
 
   // Album methods
   async findOrCreateAlbum(albumData, artistId) {
-    // Normalize empty mbid to null to avoid unique constraint violations
-    const normalizedMbid = albumData.mbid && albumData.mbid.trim() !== '' ? albumData.mbid : null;
-    const normalizedData = { ...albumData, mbid: normalizedMbid, artistId };
+    // Convert empty mbid strings to null to avoid unique constraint violations
+    const normalizedAlbumData = {
+      ...albumData,
+      mbid: albumData.mbid && albumData.mbid.trim() !== '' ? albumData.mbid : null,
+    };
 
     const [album] = await this.Album.findOrCreate({
-      where: normalizedMbid
-        ? { mbid: normalizedMbid }
-        : { title: albumData.title, artistId },
-      defaults: normalizedData,
+      where: normalizedAlbumData.mbid
+        ? { mbid: normalizedAlbumData.mbid }
+        : { title: normalizedAlbumData.title, artistId },
+      defaults: { ...normalizedAlbumData, artistId },
     });
 
     return album;
@@ -64,15 +66,17 @@ class MusicService {
 
   // Track methods
   async findOrCreateTrack(trackData, artistId, albumId = null) {
-    // Normalize empty mbid to null to avoid unique constraint violations
-    const normalizedMbid = trackData.mbid && trackData.mbid.trim() !== '' ? trackData.mbid : null;
-    const normalizedData = { ...trackData, mbid: normalizedMbid, artistId, albumId };
+    // Convert empty mbid strings to null to avoid unique constraint violations
+    const normalizedTrackData = {
+      ...trackData,
+      mbid: trackData.mbid && trackData.mbid.trim() !== '' ? trackData.mbid : null,
+    };
 
     const [track] = await this.Track.findOrCreate({
-      where: normalizedMbid
-        ? { mbid: normalizedMbid }
-        : { name: trackData.name, artistId },
-      defaults: normalizedData,
+      where: normalizedTrackData.mbid
+        ? { mbid: normalizedTrackData.mbid }
+        : { name: normalizedTrackData.name, artistId },
+      defaults: { ...normalizedTrackData, artistId, albumId },
     });
 
     return track;

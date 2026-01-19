@@ -298,7 +298,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.redirect(new URL("/taste-map", request.url));
+    return NextResponse.redirect(new URL("/tracks", request.url));
   } catch (error) {
     console.error("Last.fm OAuth callback error:", error);
     return NextResponse.redirect(

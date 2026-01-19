@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { TasteMap } from '@/app/components/TasteMap';
+import { TasteMap } from '@/app/components/Taste/TasteMap';
 
 export default function TasteMapPage() {
   return (

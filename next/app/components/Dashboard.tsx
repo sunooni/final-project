@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Navigation } from "./Navigation";
-import { TasteMap } from "./TasteMap";
-import { TraksUser } from "./TraksUser";
-import { EmotionalCalendar } from "./EmotionalCalendar";
-import { EvolutionTimeline } from "./EvolutionTimeline";
-import { GalaxyView } from "./GalaxyView";
-import { SocialHub } from "./SocialHub";
+import { Navigation } from "./Navigation/Navigation";
+import { TasteMap } from "./Taste/TasteMap";
+import { TraksUser } from "./Tracks/TraksUser";
+import { EmotionalCalendar } from "./Emotion/EmotionalCalendar";
+import { EvolutionTimeline } from "./Evolution/EvolutionTimeline";
+import { GalaxyView } from "./Taste/GalaxyView";
+import { SocialHub } from "./Social/SocialHub";
 
 const tabComponents: Record<string, React.ComponentType> = {
   map: TasteMap,

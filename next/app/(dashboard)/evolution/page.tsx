@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { EvolutionTimeline } from '@/app/components/EvolutionTimeline';
+import { EvolutionTimeline } from '@/app/components/Evolution/EvolutionTimeline';
 
 export default function EvolutionPage() {
   return (

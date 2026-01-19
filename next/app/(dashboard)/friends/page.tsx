@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { SocialHub } from '@/app/components/SocialHub';
+import { SocialHub } from '@/app/components/Social/SocialHub';
 
 export default function FriendsPage() {
   return (

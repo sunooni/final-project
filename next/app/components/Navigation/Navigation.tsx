@@ -28,8 +28,8 @@ interface User {
 }
 
 const navItems = [
-  { id: "taste-map", label: "Карта Вкуса", icon: Map, href: "/taste-map" },
   { id: "tracks", label: "Треки", icon: Music, href: "/tracks" },
+  { id: "taste-map", label: "Карта Вкуса", icon: Map, href: "/taste-map" },
   { id: "emotions", label: "Эмоции", icon: Calendar, href: "/emotions" },
   { id: "evolution", label: "Эволюция", icon: TrendingUp, href: "/evolution" },
   { id: "galaxy", label: "Галактика", icon: Sparkles, href: "/galaxy" },

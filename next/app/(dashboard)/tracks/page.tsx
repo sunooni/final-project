@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { TraksUser } from '@/app/components/TraksUser';
+import { TraksUser } from '@/app/components/Tracks/TraksUser';
 
 export default function TracksPage() {
   return (

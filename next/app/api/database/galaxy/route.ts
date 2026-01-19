@@ -1,26 +1,14 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { callLastfmApi, getLastfmUsername } from '@/app/lib/lastfm';
 import { lastfmConfig } from '@/config/lastfm';
 
-interface DatabaseTrack {
-  id: number;
-  track: {
-    id: number;
-    name: string;
-    image: string;
-    url: string;
-    artist: {
-      id: number;
-      name: string;
-      url?: string;
-    };
-    album?: {
-      id: number;
-      title: string;
-      image: string;
-    };
+interface Track {
+  name: string;
+  artist: {
+    '#text': string;
+    mbid?: string;
   };
-  date?: string;
+  url: string;
 }
 
 interface ArtistInfo {
@@ -47,92 +35,78 @@ interface Genre {
   }>;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    console.log('Database Galaxy API route called');
-    const cookieStore = await cookies();
-    const userId = cookieStore.get('user_id')?.value;
+    console.log('Galaxy API route called');
+    const username = await getLastfmUsername();
     
-    if (!userId) {
-      console.log('No user_id found, returning 401');
+    if (!username) {
+      console.log('No username found, returning 401');
       return NextResponse.json(
-        { error: 'Not authenticated' },
+        { error: 'Not authenticated with Last.fm' },
         { status: 401 }
       );
     }
-
-    console.log(`Fetching galaxy data from database for user: ${userId}`);
-
-    // Get loved tracks from database
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/music';
     
-    // Fetch all loved tracks (up to 500)
-    let allTracks: DatabaseTrack[] = [];
-    let offset = 0;
+    console.log(`Fetching galaxy data for user: ${username}`);
+
+    // Get all loved tracks (fetch multiple pages)
+    let allTracks: Track[] = [];
+    let page = 1;
     const limit = 50;
     let hasMore = true;
 
-    while (hasMore && offset < 500) {
-      const response = await fetch(
-        `${apiUrl}/users/${userId}/loved-tracks?limit=${limit}&offset=${offset}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+    while (hasMore && page <= 10) { // Limit to 10 pages (500 tracks max)
+      const data = await callLastfmApi('user.getLovedTracks', {
+        user: username,
+        page: page.toString(),
+        limit: limit.toString(),
+      });
 
-      if (!response.ok) {
-        console.error(`Failed to fetch loved tracks: ${response.status}`);
-        break;
-      }
+      const tracks = data.lovedtracks?.track;
+      if (!tracks) break;
 
-      const data = await response.json();
+      const trackArray = Array.isArray(tracks) ? tracks : [tracks];
+      allTracks = allTracks.concat(trackArray);
 
-      if (!data.tracks || !Array.isArray(data.tracks) || data.tracks.length === 0) {
-        hasMore = false;
-        break;
-      }
-
-      allTracks = allTracks.concat(data.tracks);
-
-      // Check if there are more tracks
-      if (data.tracks.length < limit || allTracks.length >= 500) {
-        hasMore = false;
-      } else {
-        offset += limit;
-      }
+      const totalPages = parseInt(data.lovedtracks?.['@attr']?.totalPages || '1');
+      hasMore = page < totalPages;
+      page++;
     }
 
     if (allTracks.length === 0) {
-      console.log('No tracks found in database');
       return NextResponse.json({ genres: [] });
     }
 
-    console.log(`Processing ${allTracks.length} tracks from database`);
+    console.log(`Processing ${allTracks.length} tracks`);
 
     // Group tracks by artist
-    const artistTracks: Record<string, { tracks: DatabaseTrack[]; url: string }> = {};
-    for (const dbTrack of allTracks) {
-      const artistName = dbTrack.track?.artist?.name;
+    const artistTracks: Record<string, { tracks: Track[]; url: string }> = {};
+    for (const track of allTracks) {
+      // Handle different possible structures of artist data
+      const artistName = track.artist?.['#text'] || track.artist?.name || track.artist;
       
       // Skip tracks without valid artist name
       if (!artistName || typeof artistName !== 'string' || artistName.trim() === '') {
-        console.warn('Skipping track with invalid artist:', dbTrack);
+        console.warn('Skipping track with invalid artist:', track);
         continue;
       }
       
       if (!artistTracks[artistName]) {
-        // Use artist URL from database or construct from Last.fm
-        const artistUrl = dbTrack.track.artist.url || 
-          `https://www.last.fm/music/${encodeURIComponent(artistName)}`;
+        // Try to construct artist URL from track URL
+        let artistUrl = `https://www.last.fm/music/${encodeURIComponent(artistName)}`;
+        if (track.url) {
+          const trackUrlParts = track.url.split('/track/');
+          if (trackUrlParts.length > 0 && trackUrlParts[0]) {
+            artistUrl = trackUrlParts[0] + '/music/' + encodeURIComponent(artistName);
+          }
+        }
         artistTracks[artistName] = { tracks: [], url: artistUrl };
       }
-      artistTracks[artistName].tracks.push(dbTrack);
+      artistTracks[artistName].tracks.push(track);
     }
 
-    console.log(`Found ${Object.keys(artistTracks).length} unique artists`);
+    console.log(`Found ${Object.keys(artistTracks).length} unique artists:`, Object.keys(artistTracks));
 
     // Get tags (genres) for each unique artist
     // Use public API method (no auth required for artist.getInfo)
@@ -240,16 +214,17 @@ export async function GET() {
       }))
       .filter(genre => genre.artists.length > 0);
 
-    console.log(`Returning ${genres.length} genres with artists from database`);
+    console.log(`Returning ${genres.length} genres with artists`);
 
     return NextResponse.json({ genres });
   } catch (error) {
-    console.error('Error fetching galaxy data from database:', error);
+    console.error('Error fetching galaxy data:', error);
     return NextResponse.json(
       { 
-        error: error instanceof Error ? error.message : 'Failed to fetch galaxy data from database' 
+        error: error instanceof Error ? error.message : 'Failed to fetch galaxy data' 
       },
       { status: 500 }
     );
   }
 }
+
