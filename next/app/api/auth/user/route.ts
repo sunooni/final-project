@@ -7,41 +7,51 @@ export async function GET() {
   
   // Check for Last.fm user
   const lastfmUsername = cookieStore.get('lastfm_username');
-  const userId = cookieStore.get('user_id')?.value;
+  const userIdCookie = cookieStore.get('user_id')?.value;
   
   if (lastfmUsername) {
     // Пытаемся получить данные пользователя из базы данных
-    if (userId) {
+    if (userIdCookie) {
       try {
         const userResult = await userApi.getUser(lastfmUsername.value);
         if (userResult.data) {
+          const userData = userResult.data as any;
+          // Возвращаем полные данные пользователя из БД
           return NextResponse.json({ 
             authenticated: true, 
             user: { 
-              id: userResult.data.id,
-              username: userResult.data.lastfmUsername,
-              login: userResult.data.lastfmUsername,
+              id: userData.id || parseInt(userIdCookie),
+              username: userData.lastfmUsername || lastfmUsername.value,
+              login: userData.lastfmUsername || lastfmUsername.value,
               provider: 'lastfm',
-              playcount: userResult.data.playcount,
-              country: userResult.data.country,
-              realname: userResult.data.realname,
-              image: userResult.data.image,
+              playcount: userData.playcount || 0,
+              country: userData.country || '',
+              realname: userData.realname || '',
+              image: userData.image || '',
             } 
           });
         }
       } catch (error) {
         console.error('Error fetching user from database:', error);
+        // Если ошибка при получении из БД, но user_id есть в куки, вернем его
       }
     }
 
     // Fallback на данные из cookie
+    // Если user_id есть в куки, включаем его в ответ
+    const fallbackUser: any = {
+      username: lastfmUsername.value,
+      login: lastfmUsername.value,
+      provider: 'lastfm'
+    };
+
+    if (userIdCookie) {
+      fallbackUser.id = parseInt(userIdCookie);
+    }
+
     return NextResponse.json({ 
       authenticated: true, 
-      user: { 
-        username: lastfmUsername.value,
-        login: lastfmUsername.value,
-        provider: 'lastfm'
-      } 
+      user: fallbackUser
     });
   }
 
