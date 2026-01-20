@@ -22,11 +22,21 @@ export interface ListeningDay {
   intensity: number; // 0-1
 }
 
-interface TopArtistOverall {
+export interface TopArtistOverall {
   name: string;
   playcount: number;
   url: string;
   mbid?: string;
+  image?: string | null;
+}
+
+interface TopTrack {
+  name: string;
+  artist: string;
+  playcount: number;
+  listeners: number;
+  url: string;
+  mbid?: string | null;
   image?: string | null;
 }
 
@@ -39,9 +49,11 @@ interface RealListeningStats {
 }
 
 interface UserStore {
+  username: string | null;
   topGenres: Genre[];
   topArtists: Artist[];
   topArtistsOverall: TopArtistOverall[];
+  topTracks: TopTrack[];
   listeningHistory: ListeningDay[];
   totalMinutesListened: number;
   timeline: TimelineItem[];
@@ -51,10 +63,12 @@ interface UserStore {
   isLoadingTimeline: boolean;
   isLoadingRealStats: boolean;
   isLoadingTopArtists: boolean;
+  isLoadingTopTracks: boolean;
   moodHistoryError: string | null;
   timelineError: string | null;
   realStatsError: string | null;
   topArtistsError: string | null;
+  topTracksError: string | null;
   dataTimestamp?: number;
   setGalaxyData: (genres: Genre[]) => void;
   clearGalaxyData: () => void;
@@ -65,6 +79,9 @@ interface UserStore {
   loadTimeline: () => Promise<void>;
   loadRealListeningStats: (period: Period) => Promise<void>;
   loadTopArtistsOverall: () => Promise<void>;
+  loadTopTracks: () => Promise<void>;
+  loadUserInfo: () => Promise<void>;
+  setUsername: (username: string | null) => void;
 }
 
 // Pastel colors for planets
@@ -106,9 +123,11 @@ const generateMockListeningHistory = (): ListeningDay[] => {
 };
 
 export const useUserStore = create<UserStore>((set) => ({
+  username: null,
   topGenres: [],
   topArtists: [],
   topArtistsOverall: [],
+  topTracks: [],
   listeningHistory: generateMockListeningHistory(),
   totalMinutesListened: 125000, // Mock data
   timeline: [],
@@ -118,10 +137,12 @@ export const useUserStore = create<UserStore>((set) => ({
   isLoadingTimeline: false,
   isLoadingRealStats: false,
   isLoadingTopArtists: false,
+  isLoadingTopTracks: false,
   moodHistoryError: null,
   timelineError: null,
   realStatsError: null,
   topArtistsError: null,
+  topTracksError: null,
   dataTimestamp: undefined,
   setGalaxyData: (genres: Genre[]) => {
     // Assign pastel colors to genres
@@ -189,9 +210,19 @@ export const useUserStore = create<UserStore>((set) => ({
     set({ totalMinutesListened: minutes });
   },
   setSelectedPeriod: (period: Period) => {
-    set({ selectedPeriod: period });
+    set({ 
+      selectedPeriod: period,
+      realListeningStats: null // Очищаем предыдущие данные при смене периода
+    });
   },
   loadTimeline: async () => {
+    const currentState = useUserStore.getState();
+    
+    // Предотвращаем дублирующие запросы
+    if (currentState.isLoadingTimeline) {
+      return;
+    }
+    
     set({ isLoadingTimeline: true, timelineError: null });
     
     try {
@@ -218,6 +249,13 @@ export const useUserStore = create<UserStore>((set) => ({
     }
   },
   loadRealListeningStats: async (period: Period) => {
+    const currentState = useUserStore.getState();
+    
+    // Предотвращаем дублирующие запросы
+    if (currentState.isLoadingRealStats) {
+      return;
+    }
+    
     set({ isLoadingRealStats: true, realStatsError: null });
     
     try {
@@ -244,6 +282,13 @@ export const useUserStore = create<UserStore>((set) => ({
     }
   },
   loadTopArtistsOverall: async () => {
+    const currentState = useUserStore.getState();
+    
+    // Предотвращаем дублирующие запросы
+    if (currentState.isLoadingTopArtists) {
+      return;
+    }
+    
     set({ isLoadingTopArtists: true, topArtistsError: null });
     
     try {
@@ -268,5 +313,52 @@ export const useUserStore = create<UserStore>((set) => ({
         isLoadingTopArtists: false 
       });
     }
+  },
+  loadTopTracks: async () => {
+    const currentState = useUserStore.getState();
+    
+    // Предотвращаем дублирующие запросы
+    if (currentState.isLoadingTopTracks) {
+      return;
+    }
+    
+    set({ isLoadingTopTracks: true, topTracksError: null });
+    
+    try {
+      const response = await fetch('/api/lastfm/chart/top-tracks?limit=20');
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Ошибка загрузки данных');
+      }
+
+      const data = await response.json();
+      set({ 
+        topTracks: data.tracks || [], 
+        isLoadingTopTracks: false 
+      });
+    } catch (error) {
+      set({ 
+        topTracksError: error instanceof Error ? error.message : 'Ошибка загрузки топ треков',
+        isLoadingTopTracks: false 
+      });
+    }
+  },
+  loadUserInfo: async () => {
+    try {
+      const response = await fetch('/api/auth/user');
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.authenticated && data.user) {
+          set({ username: data.user.username });
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user info:', error);
+    }
+  },
+  setUsername: (username: string | null) => {
+    set({ username });
   },
 }));

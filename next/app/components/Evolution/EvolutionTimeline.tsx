@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 
 const periodOptions: { value: Period; label: string }[] = [
   { value: '7day', label: '7 дней' },
-  { value: '1month', label: 'Месяц' },
+  { value: '1month', label: '1 месяц' },
   { value: '3month', label: '3 мес' },
   { value: '6month', label: '6 мес' },
   { value: '12month', label: 'Год' },
@@ -36,33 +36,26 @@ export const EvolutionTimeline = () => {
     if (timeline.length === 0 && !isLoadingTimeline && !timelineError) {
       loadTimeline();
     }
+  }, [timeline.length, isLoadingTimeline, timelineError]);
+
+  useEffect(() => {
+    if (!realListeningStats && !isLoadingRealStats && !realStatsError) {
+      loadRealListeningStats(selectedPeriod);
+    }
+  }, [realListeningStats, isLoadingRealStats, realStatsError, selectedPeriod]);
+
+  useEffect(() => {
     if (topArtistsOverall.length === 0 && !isLoadingTopArtists && !topArtistsError) {
       loadTopArtistsOverall();
     }
-  }, [
-    timeline.length, 
-    isLoadingTimeline, 
-    timelineError, 
-    topArtistsOverall.length,
-    isLoadingTopArtists,
-    topArtistsError,
-    loadTimeline, 
-    loadTopArtistsOverall
-  ]);
+  }, [topArtistsOverall.length, isLoadingTopArtists, topArtistsError]);
 
   // Загружаем статистику при первом рендере и при смене периода
   useEffect(() => {
-    // Загружаем только если:
-    // 1. Период выбран
-    // 2. Не идет загрузка
-    // 3. Нет данных для текущего периода или период изменился
-    if (selectedPeriod && !isLoadingRealStats) {
-      const needsLoad = !realListeningStats || realListeningStats.period !== selectedPeriod;
-      if (needsLoad) {
-        loadRealListeningStats(selectedPeriod);
-      }
+    if (selectedPeriod && !realListeningStats && !isLoadingRealStats && !realStatsError) {
+      loadRealListeningStats(selectedPeriod);
     }
-  }, [selectedPeriod, loadRealListeningStats, isLoadingRealStats, realListeningStats]);
+  }, [selectedPeriod, realListeningStats, isLoadingRealStats, realStatsError]);
 
   // Mock top artists data if empty - теперь используем реальные данные
   const displayArtists = topArtistsOverall.length > 0 ? topArtistsOverall : [
