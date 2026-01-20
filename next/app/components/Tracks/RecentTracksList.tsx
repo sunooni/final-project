@@ -6,6 +6,7 @@ import { RecentTrack } from "./types";
 interface RecentTracksListProps {
   recentTracks: RecentTrack[];
   loading: boolean;
+  totalTracks?: number;
 }
 
 const formatDate = (dateString: string) => {
@@ -22,7 +23,9 @@ const formatDate = (dateString: string) => {
 export const RecentTracksList = ({
   recentTracks,
   loading,
+  totalTracks,
 }: RecentTracksListProps) => {
+  const displayCount = totalTracks !== undefined ? totalTracks : recentTracks.length;
   if (recentTracks.length === 0 && !loading) {
     return (
       <motion.div
@@ -42,7 +45,7 @@ export const RecentTracksList = ({
     <>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-semibold text-black dark:text-zinc-50">
-          История прослушивания ({recentTracks.length})
+          История прослушивания ({displayCount})
         </h2>
       </div>
 
