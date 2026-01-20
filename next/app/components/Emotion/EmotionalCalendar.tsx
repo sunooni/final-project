@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useUserStore, ListeningDay } from '@/app/stores/userStore';
 
@@ -22,9 +22,23 @@ const months = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'И�
 const weekDays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
 export const EmotionalCalendar = () => {
-  const { listeningHistory } = useUserStore();
+  const { 
+    listeningHistory, 
+    isLoadingMoodHistory, 
+    moodHistoryError, 
+    loadMoodHistory 
+  } = useUserStore();
+
+  // Автозагрузка при первом рендере
+  useEffect(() => {
+    if (listeningHistory.length === 0 && !isLoadingMoodHistory && !moodHistoryError) {
+      loadMoodHistory();
+    }
+  }, [listeningHistory.length, isLoadingMoodHistory, moodHistoryError, loadMoodHistory]);
 
   const calendarData = useMemo(() => {
+    if (listeningHistory.length === 0) return [];
+    
     const weeks: ListeningDay[][] = [];
     let currentWeek: ListeningDay[] = [];
 
@@ -55,6 +69,8 @@ export const EmotionalCalendar = () => {
   }, [listeningHistory]);
 
   const moodStats = useMemo(() => {
+    if (listeningHistory.length === 0) return [];
+    
     const stats = { joy: 0, energy: 0, calm: 0, sad: 0, love: 0 };
     listeningHistory.forEach(day => {
       stats[day.mood]++;
@@ -67,15 +83,61 @@ export const EmotionalCalendar = () => {
     })).sort((a, b) => b.count - a.count);
   }, [listeningHistory]);
 
+  if (isLoadingMoodHistory) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-xl mb-2 text-white">Загрузка эмоционального календаря...</div>
+          <div className="text-sm text-gray-400">Анализируем ваши треки и настроение...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (moodHistoryError) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="glass-card rounded-2xl p-8 text-center max-w-md">
+          <p className="text-red-400 mb-4">{moodHistoryError}</p>
+          <button 
+            onClick={loadMoodHistory}
+            className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+          >
+            Попробовать снова
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-6"
+        className="mb-6 flex items-center justify-between"
       >
-        <h2 className="text-3xl font-bold text-gradient-nebula mb-2">Эмоциональный Календарь</h2>
-        <p className="text-muted-foreground">Ваш музыкальный настрой за последний год</p>
+        <div>
+          <h2 className="text-3xl font-bold text-gradient-nebula mb-2">Эмоциональный Календарь</h2>
+          <p className="text-muted-foreground">Ваш музыкальный настрой за последние 90 дней</p>
+        </div>
+        <button
+          onClick={loadMoodHistory}
+          disabled={isLoadingMoodHistory}
+          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          {isLoadingMoodHistory ? (
+            <>
+              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Загрузка...
+            </>
+          ) : (
+            'Обновить данные'
+          )}
+        </button>
       </motion.div>
 
       <div className="flex-1 flex gap-8">
@@ -165,7 +227,7 @@ export const EmotionalCalendar = () => {
               <p className="text-3xl font-bold text-gradient-nebula">
                 {listeningHistory.reduce((sum, d) => sum + d.tracks, 0).toLocaleString()}
               </p>
-              <p className="text-sm text-muted-foreground mt-1">треков за год</p>
+              <p className="text-sm text-muted-foreground mt-1">треков за период</p>
             </div>
           </div>
         </motion.div>

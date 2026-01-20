@@ -40,8 +40,37 @@ class MusicController {
         parseInt(limit),
         parseInt(offset)
       );
+      // Serialize data to ensure track and artist names are included
+      const tracks = result.rows.map(lovedTrack => ({
+        id: lovedTrack.id,
+        userId: lovedTrack.userId,
+        trackId: lovedTrack.trackId,
+        date: lovedTrack.date,
+        createdAt: lovedTrack.createdAt,
+        updatedAt: lovedTrack.updatedAt,
+        track: lovedTrack.track ? {
+          id: lovedTrack.track.id,
+          name: lovedTrack.track.name,
+          mbid: lovedTrack.track.mbid,
+          url: lovedTrack.track.url,
+          image: lovedTrack.track.image,
+          duration: lovedTrack.track.duration,
+          artist: lovedTrack.track.artist ? {
+            id: lovedTrack.track.artist.id,
+            name: lovedTrack.track.artist.name,
+            mbid: lovedTrack.track.artist.mbid,
+            url: lovedTrack.track.artist.url,
+          } : null,
+          album: lovedTrack.track.album ? {
+            id: lovedTrack.track.album.id,
+            title: lovedTrack.track.album.title,
+            mbid: lovedTrack.track.album.mbid,
+            image: lovedTrack.track.album.image,
+          } : null,
+        } : null,
+      }));
       res.json({
-        tracks: result.rows,
+        tracks,
         total: result.count,
         limit: parseInt(limit),
         offset: parseInt(offset),
@@ -77,8 +106,37 @@ class MusicController {
         parseInt(limit),
         parseInt(offset)
       );
+      // Serialize data to ensure track and artist names are included
+      const tracks = result.rows.map(recentTrack => ({
+        id: recentTrack.id,
+        userId: recentTrack.userId,
+        trackId: recentTrack.trackId,
+        playedAt: recentTrack.playedAt,
+        createdAt: recentTrack.createdAt,
+        updatedAt: recentTrack.updatedAt,
+        track: recentTrack.track ? {
+          id: recentTrack.track.id,
+          name: recentTrack.track.name,
+          mbid: recentTrack.track.mbid,
+          url: recentTrack.track.url,
+          image: recentTrack.track.image,
+          duration: recentTrack.track.duration,
+          artist: recentTrack.track.artist ? {
+            id: recentTrack.track.artist.id,
+            name: recentTrack.track.artist.name,
+            mbid: recentTrack.track.artist.mbid,
+            url: recentTrack.track.artist.url,
+          } : null,
+          album: recentTrack.track.album ? {
+            id: recentTrack.track.album.id,
+            title: recentTrack.track.album.title,
+            mbid: recentTrack.track.album.mbid,
+            image: recentTrack.track.album.image,
+          } : null,
+        } : null,
+      }));
       res.json({
-        tracks: result.rows,
+        tracks,
         total: result.count,
         limit: parseInt(limit),
         offset: parseInt(offset),

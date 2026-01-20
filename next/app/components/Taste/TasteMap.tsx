@@ -11,6 +11,7 @@ interface Node {
   type: "genre" | "artist";
   value: number;
   color: string;
+  ulr?: string;
   x?: number;
   y?: number;
   fx?: number | null;
@@ -288,6 +289,7 @@ export const TasteMap = () => {
             type: "artist" as const,
             value: Math.sqrt(artist.trackCount) * 4.5,
             color: genre.color || "#FFB3BA",
+            url: artist.url,
           });
 
           links.push({
@@ -478,12 +480,39 @@ export const TasteMap = () => {
                 ? "Жанр (Планета)"
                 : "Артист (Спутник)"}
             </p>
-            <button
-              onClick={() => setSelectedNode(null)}
-              className="mt-3 text-xs text-purple-400 hover:text-purple-300 transition-colors"
-            >
-              Закрыть
-            </button>
+            {selectedNode.type === "artist" && selectedNode.url && (
+              <a
+                href={selectedNode.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-2 text-xs text-purple-400 hover:text-purple-300 transition-colors underline"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+                Открыть на Last.fm
+              </a>
+            )}
+            <div className="mt-3 flex justify-end">
+              <button
+                onClick={() => setSelectedNode(null)}
+                className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+              >
+                Закрыть
+              </button>
+            </div>
           </motion.div>
         )}
       </div>

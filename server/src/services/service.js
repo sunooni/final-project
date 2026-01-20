@@ -138,11 +138,24 @@ class MusicService {
   }
 
   async addRecentTrack(userId, trackId, playedAt) {
-    return this.RecentTrack.create({
-      userId,
-      trackId,
-      playedAt: playedAt || new Date(),
+    // Use findOrCreate with userId, trackId, and playedAt to allow same track at different times
+    // But check if playedAt is provided, otherwise use current time
+    const playedAtDate = playedAt || new Date();
+    
+    const [recentTrack, created] = await this.RecentTrack.findOrCreate({
+      where: {
+        userId,
+        trackId,
+        playedAt: playedAtDate,
+      },
+      defaults: {
+        userId,
+        trackId,
+        playedAt: playedAtDate,
+      },
     });
+    
+    return recentTrack;
   }
 
   // Sync methods for Last.fm data
