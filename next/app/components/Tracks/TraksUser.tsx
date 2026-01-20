@@ -133,42 +133,75 @@ export const TraksUser = () => {
     setError(null);
 
     try {
-      const syncResponse = await fetch("/api/sync/loved-tracks", {
+      // Синхронизируем любимые треки
+      const syncLovedResponse = await fetch("/api/sync/loved-tracks", {
         method: "POST",
       });
 
-      if (!syncResponse.ok) {
-        const errorData = await syncResponse.json();
-        setError(errorData.error || "Ошибка при синхронизации треков");
+      if (!syncLovedResponse.ok) {
+        const errorData = await syncLovedResponse.json();
+        setError(errorData.error || "Ошибка при синхронизации любимых треков");
         setLoading(false);
         return;
       }
 
-      const syncData = await syncResponse.json();
-      console.log("Треки синхронизированы с БД:", syncData);
+      const syncLovedData = await syncLovedResponse.json();
+      console.log("Любимые треки синхронизированы с БД:", syncLovedData);
 
+      // Синхронизируем историю прослушивания
+      const syncRecentResponse = await fetch("/api/sync/recent-tracks", {
+        method: "POST",
+      });
+
+      if (!syncRecentResponse.ok) {
+        const errorData = await syncRecentResponse.json();
+        console.warn("Ошибка при синхронизации истории:", errorData.error);
+        // Не прерываем процесс, если история не синхронизировалась
+      } else {
+        const syncRecentData = await syncRecentResponse.json();
+        console.log("История прослушивания синхронизирована с БД:", syncRecentData);
+      }
+
+      // Обновляем данные в зависимости от текущего режима просмотра
       const apiUrl =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/music";
-      const dbResponse = await fetch(
-        `${apiUrl}/users/${userId}/loved-tracks?limit=50`
-      );
 
-      if (dbResponse.ok) {
-        const dbData = await dbResponse.json();
-        if (dbData.tracks && Array.isArray(dbData.tracks)) {
-          setDbTracks(dbData.tracks);
-          setShowTracks(true);
-          setUseDatabase(true);
-          setLovedTracks([]);
+      if (viewMode === "loved") {
+        // Загружаем обновленные любимые треки
+        const dbResponse = await fetch(
+          `${apiUrl}/users/${userId}/loved-tracks?limit=50`
+        );
+
+        if (dbResponse.ok) {
+          const dbData = await dbResponse.json();
+          if (dbData.tracks && Array.isArray(dbData.tracks)) {
+            setDbTracks(dbData.tracks);
+            setShowTracks(true);
+            setUseDatabase(true);
+            setLovedTracks([]);
+          }
+        } else {
+          setError("Не удалось загрузить обновленные треки из базы данных");
         }
       } else {
-        setError("Не удалось загрузить обновленные треки из базы данных");
+        // Загружаем обновленную историю прослушивания
+        const recentResponse = await fetch(
+          `${apiUrl}/users/${userId}/recent-tracks?limit=50`
+        );
+
+        if (recentResponse.ok) {
+          const recentData = await recentResponse.json();
+          if (recentData.tracks && Array.isArray(recentData.tracks)) {
+            setRecentTracks(recentData.tracks);
+            setShowTracks(true);
+          }
+        }
       }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Ошибка при синхронизации треков"
       );
-      console.error("Error syncing loved tracks:", err);
+      console.error("Error syncing tracks:", err);
     } finally {
       setLoading(false);
     }
