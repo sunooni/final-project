@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Mood } from '@/app/utils/moodAnalyzer';
+import { TimelineItem, Period } from '@/app/utils/timelineBuilder';
 
 interface Artist {
   name: string;
@@ -21,17 +22,49 @@ export interface ListeningDay {
   intensity: number; // 0-1
 }
 
+interface TopArtistOverall {
+  name: string;
+  playcount: number;
+  url: string;
+  mbid?: string;
+  image?: string | null;
+}
+
+interface RealListeningStats {
+  period: Period;
+  playcount: number;
+  minutes: number;
+  hours: number;
+  days: number;
+}
+
 interface UserStore {
   topGenres: Genre[];
   topArtists: Artist[];
+  topArtistsOverall: TopArtistOverall[];
   listeningHistory: ListeningDay[];
+  totalMinutesListened: number;
+  timeline: TimelineItem[];
+  selectedPeriod: Period; // Единый период для всего
+  realListeningStats: RealListeningStats | null;
   isLoadingMoodHistory: boolean;
+  isLoadingTimeline: boolean;
+  isLoadingRealStats: boolean;
+  isLoadingTopArtists: boolean;
   moodHistoryError: string | null;
+  timelineError: string | null;
+  realStatsError: string | null;
+  topArtistsError: string | null;
   dataTimestamp?: number;
   setGalaxyData: (genres: Genre[]) => void;
   clearGalaxyData: () => void;
   setListeningHistory: (history: ListeningDay[]) => void;
   loadMoodHistory: () => Promise<void>;
+  setTotalMinutesListened: (minutes: number) => void;
+  setSelectedPeriod: (period: Period) => void;
+  loadTimeline: () => Promise<void>;
+  loadRealListeningStats: (period: Period) => Promise<void>;
+  loadTopArtistsOverall: () => Promise<void>;
 }
 
 // Pastel colors for planets
@@ -75,9 +108,20 @@ const generateMockListeningHistory = (): ListeningDay[] => {
 export const useUserStore = create<UserStore>((set) => ({
   topGenres: [],
   topArtists: [],
+  topArtistsOverall: [],
   listeningHistory: generateMockListeningHistory(),
+  totalMinutesListened: 125000, // Mock data
+  timeline: [],
+  selectedPeriod: '12month', // Единый период
+  realListeningStats: null,
   isLoadingMoodHistory: false,
+  isLoadingTimeline: false,
+  isLoadingRealStats: false,
+  isLoadingTopArtists: false,
   moodHistoryError: null,
+  timelineError: null,
+  realStatsError: null,
+  topArtistsError: null,
   dataTimestamp: undefined,
   setGalaxyData: (genres: Genre[]) => {
     // Assign pastel colors to genres
@@ -138,6 +182,90 @@ export const useUserStore = create<UserStore>((set) => ({
       set({ 
         moodHistoryError: error instanceof Error ? error.message : 'Ошибка загрузки истории настроения',
         isLoadingMoodHistory: false 
+      });
+    }
+  },
+  setTotalMinutesListened: (minutes: number) => {
+    set({ totalMinutesListened: minutes });
+  },
+  setSelectedPeriod: (period: Period) => {
+    set({ selectedPeriod: period });
+  },
+  loadTimeline: async () => {
+    set({ isLoadingTimeline: true, timelineError: null });
+    
+    try {
+      const response = await fetch('/api/lastfm/user/timeline');
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Необходима авторизация через Last.fm');
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Ошибка загрузки данных');
+      }
+
+      const data = await response.json();
+      set({ 
+        timeline: data.timeline || [], 
+        isLoadingTimeline: false 
+      });
+    } catch (error) {
+      set({ 
+        timelineError: error instanceof Error ? error.message : 'Ошибка загрузки временной шкалы',
+        isLoadingTimeline: false 
+      });
+    }
+  },
+  loadRealListeningStats: async (period: Period) => {
+    set({ isLoadingRealStats: true, realStatsError: null });
+    
+    try {
+      const response = await fetch(`/api/lastfm/user/real-listening-stats?period=${period}`);
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Необходима авторизация через Last.fm');
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Ошибка загрузки данных');
+      }
+
+      const data = await response.json();
+      set({ 
+        realListeningStats: data, 
+        isLoadingRealStats: false 
+      });
+    } catch (error) {
+      set({ 
+        realStatsError: error instanceof Error ? error.message : 'Ошибка загрузки статистики',
+        isLoadingRealStats: false 
+      });
+    }
+  },
+  loadTopArtistsOverall: async () => {
+    set({ isLoadingTopArtists: true, topArtistsError: null });
+    
+    try {
+      const response = await fetch('/api/lastfm/user/top-artists-overall?limit=10');
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Необходима авторизация через Last.fm');
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Ошибка загрузки данных');
+      }
+
+      const data = await response.json();
+      set({ 
+        topArtistsOverall: data.artists || [], 
+        isLoadingTopArtists: false 
+      });
+    } catch (error) {
+      set({ 
+        topArtistsError: error instanceof Error ? error.message : 'Ошибка загрузки топ артистов',
+        isLoadingTopArtists: false 
       });
     }
   },
