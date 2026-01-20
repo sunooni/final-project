@@ -189,52 +189,60 @@ class MusicController {
   };
 
   getUserRecentTracksByDateRange = async (req, res) => {
-    const { userId } = req.params;
-    const { startDate, endDate } = req.query;
+    try {
+      const { userId } = req.params;
+      const { startDate, endDate } = req.query;
 
-    if (!startDate || !endDate) {
-      return res.status(400).json({ 
-        message: 'startDate and endDate are required' 
-      });
-    }
+      if (!startDate || !endDate) {
+        return res.status(400).json({ 
+          message: 'startDate and endDate are required' 
+        });
+      }
+
       const result = await this.service.getUserRecentTracksByDateRange(
         parseInt(userId),
         new Date(startDate),
         new Date(endDate)
       );
 
+      // Сериализация данных (аналогично getUserRecentTracks)
       const tracks = result.rows.map(recentTrack => ({
         id: recentTrack.id,
         userId: recentTrack.userId,
-      trackId: recentTrack.trackId,
-      playedAt: recentTrack.playedAt,
-      createdAt: recentTrack.createdAt,
-      updatedAt: recentTrack.updatedAt,
-      track: recentTrack.track ? {
-        id: recentTrack.track.id,
-        name: recentTrack.track.name,
-        mbid: recentTrack.track.mbid,
-        url: recentTrack.track.url,
-        duration: recentTrack.track.duration,
-        artist: recentTrack.track.artist ? {
-          id: recentTrack.track.artist.id,
-          name: recentTrack.track.artist.name,
-          mbid: recentTrack.track.artist.mbid,
-          url: recentTrack.track.artist.url,
+        trackId: recentTrack.trackId,
+        playedAt: recentTrack.playedAt,
+        createdAt: recentTrack.createdAt,
+        updatedAt: recentTrack.updatedAt,
+        track: recentTrack.track ? {
+          id: recentTrack.track.id,
+          name: recentTrack.track.name,
+          mbid: recentTrack.track.mbid,
+          url: recentTrack.track.url,
+          image: recentTrack.track.image,
+          duration: recentTrack.track.duration,
+          artist: recentTrack.track.artist ? {
+            id: recentTrack.track.artist.id,
+            name: recentTrack.track.artist.name,
+            mbid: recentTrack.track.artist.mbid,
+            url: recentTrack.track.artist.url,
+          } : null,
+          album: recentTrack.track.album ? {
+            id: recentTrack.track.album.id,
+            title: recentTrack.track.album.title,
+            mbid: recentTrack.track.album.mbid,
+            image: recentTrack.track.album.image,
+          } : null,
         } : null,
-        album: recentTrack.track.album ? {
-          id: recentTrack.track.album.id,
-          title: recentTrack.track.album.title,
-          mbid: recentTrack.track.album.mbid,
-          image: recentTrack.track.album.image,
-        } : null,
-      } : null,
       }));
 
       res.json({
         tracks,
         total: result.count,
       });
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ message: 'Server error', error: error.message });
+    }
   };
 
   // AI chat endpoint

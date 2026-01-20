@@ -287,7 +287,7 @@ class MusicService {
   async getUserRecentTracksByDateRange(userId, startDate, endDate) {
     const { Op } = require('sequelize');
 
-    return this.syncRecentTracks.findAndCountAll({
+    return this.RecentTrack.findAndCountAll({
       where: {
         userId,
         playedAt: {

@@ -26,7 +26,8 @@ export const EmotionalCalendar = () => {
     listeningHistory, 
     isLoadingMoodHistory, 
     moodHistoryError, 
-    loadMoodHistory 
+    loadMoodHistory,
+    syncMoodHistory 
   } = useUserStore();
 
   // Автозагрузка при первом рендере
@@ -34,7 +35,8 @@ export const EmotionalCalendar = () => {
     if (listeningHistory.length === 0 && !isLoadingMoodHistory && !moodHistoryError) {
       loadMoodHistory();
     }
-  }, [listeningHistory.length, isLoadingMoodHistory, moodHistoryError, loadMoodHistory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listeningHistory.length, isLoadingMoodHistory, moodHistoryError]);
 
   const calendarData = useMemo(() => {
     if (listeningHistory.length === 0) return [];
@@ -122,7 +124,7 @@ export const EmotionalCalendar = () => {
           <p className="text-muted-foreground">Ваш музыкальный настрой за последние 90 дней</p>
         </div>
         <button
-          onClick={loadMoodHistory}
+          onClick={syncMoodHistory}
           disabled={isLoadingMoodHistory}
           className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center gap-2"
         >
