@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Mood } from '@/app/utils/moodAnalyzer';
+import { TimelineItem, Period } from '@/app/utils/timelineBuilder';
 
 interface Artist {
   name: string;
@@ -25,13 +26,21 @@ interface UserStore {
   topGenres: Genre[];
   topArtists: Artist[];
   listeningHistory: ListeningDay[];
+  totalMinutesListened: number;
+  timeline: TimelineItem[];
+  selectedPeriod: Period;
   isLoadingMoodHistory: boolean;
+  isLoadingTimeline: boolean;
   moodHistoryError: string | null;
+  timelineError: string | null;
   dataTimestamp?: number;
   setGalaxyData: (genres: Genre[]) => void;
   clearGalaxyData: () => void;
   setListeningHistory: (history: ListeningDay[]) => void;
   loadMoodHistory: () => Promise<void>;
+  setTotalMinutesListened: (minutes: number) => void;
+  setSelectedPeriod: (period: Period) => void;
+  loadTimeline: () => Promise<void>;
 }
 
 // Pastel colors for planets
@@ -76,8 +85,13 @@ export const useUserStore = create<UserStore>((set) => ({
   topGenres: [],
   topArtists: [],
   listeningHistory: generateMockListeningHistory(),
+  totalMinutesListened: 125000, // Mock data
+  timeline: [],
+  selectedPeriod: '12month',
   isLoadingMoodHistory: false,
+  isLoadingTimeline: false,
   moodHistoryError: null,
+  timelineError: null,
   dataTimestamp: undefined,
   setGalaxyData: (genres: Genre[]) => {
     // Assign pastel colors to genres
@@ -138,6 +152,38 @@ export const useUserStore = create<UserStore>((set) => ({
       set({ 
         moodHistoryError: error instanceof Error ? error.message : 'Ошибка загрузки истории настроения',
         isLoadingMoodHistory: false 
+      });
+    }
+  },
+  setTotalMinutesListened: (minutes: number) => {
+    set({ totalMinutesListened: minutes });
+  },
+  setSelectedPeriod: (period: Period) => {
+    set({ selectedPeriod: period });
+  },
+  loadTimeline: async () => {
+    set({ isLoadingTimeline: true, timelineError: null });
+    
+    try {
+      const response = await fetch('/api/lastfm/user/timeline');
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Необходима авторизация через Last.fm');
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Ошибка загрузки данных');
+      }
+
+      const data = await response.json();
+      set({ 
+        timeline: data.timeline || [], 
+        isLoadingTimeline: false 
+      });
+    } catch (error) {
+      set({ 
+        timelineError: error instanceof Error ? error.message : 'Ошибка загрузки временной шкалы',
+        isLoadingTimeline: false 
       });
     }
   },
