@@ -1,12 +1,11 @@
 import { useRef, useMemo, useEffect } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Sphere, Text, Float } from '@react-three/drei';
 import * as THREE from 'three';
 import { motion } from 'framer-motion';
 import { useUserStore } from '@/app/stores/userStore';
 
 interface GenreOrb {
-  name: string;
   percentage: number;
   color: string;
   position: [number, number, number];
@@ -17,9 +16,11 @@ interface GenreOrb {
   };
 }
 
-const GenreSphere = ({ name, percentage, color, position, recommendedTrack }: GenreOrb) => {
+const GenreSphere = ({ percentage, color, position, recommendedTrack }: GenreOrb) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const glowRef = useRef<THREE.Mesh>(null);
+  const textGroupRef = useRef<THREE.Group>(null);
+  const { camera } = useThree();
 
   useFrame((state) => {
     if (meshRef.current) {
@@ -28,11 +29,16 @@ const GenreSphere = ({ name, percentage, color, position, recommendedTrack }: Ge
     if (glowRef.current) {
       glowRef.current.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 2) * 0.1);
     }
+    
+    // Синхронизируем текст с камерой
+    if (textGroupRef.current) {
+      textGroupRef.current.lookAt(camera.position);
+    }
   });
 
-  const size = 0.3 + percentage * 0.03;
+  const size = Math.min(0.8, 0.3 + (percentage / 100) * 0.5); // Ограничиваем максимальный размер до 0.8
   const glowSize = size * 1.5;
-  const textDistance = glowSize + 0.3; // Увеличиваем расстояние от свечения
+  const textDistance = glowSize + 0.3;
 
   const handleClick = () => {
     if (recommendedTrack?.url) {
@@ -43,7 +49,7 @@ const GenreSphere = ({ name, percentage, color, position, recommendedTrack }: Ge
   return (
     <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
       <group position={position}>
-        {/* Glow effect - возвращаем прозрачность на 0.1 */}
+        {/* Glow effect */}
         <Sphere ref={glowRef} args={[glowSize, 16, 16]}>
           <meshBasicMaterial color={color} transparent opacity={0.1} />
         </Sphere>
@@ -65,33 +71,31 @@ const GenreSphere = ({ name, percentage, color, position, recommendedTrack }: Ge
           />
         </Sphere>
 
-        {/* Recommended Track - размещаем дальше от свечения */}
-        {recommendedTrack && (
-          <>
-            <Text
-              position={[0, textDistance + 0.2, 0]}
-              fontSize={0.12}
-              color="#ffdd44"
-              anchorX="center"
-              anchorY="middle"
-              outlineWidth={0.03}
-              outlineColor="black"
-            >
-              🎵 {recommendedTrack.name}
-            </Text>
-            <Text
-              position={[0, textDistance, 0]}
-              fontSize={0.1}
-              color="#cccccc"
-              anchorX="center"
-              anchorY="middle"
-              outlineWidth={0.03}
-              outlineColor="black"
-            >
-              by {recommendedTrack.artist}
-            </Text>
-          </>
-        )}
+        {/* Text group that rotates with camera */}
+        <group ref={textGroupRef} position={[0, textDistance + 0.1, 0]}>
+          {recommendedTrack && (
+            <>
+              <Text
+                position={[0, 0.1, 0]}
+                fontSize={0.12}
+                color="white"
+                anchorX="center"
+                anchorY="middle"
+              >
+                {recommendedTrack.name}
+              </Text>
+              <Text
+                position={[0, -0.1, 0]}
+                fontSize={0.1}
+                color="#cccccc"
+                anchorX="center"
+                anchorY="middle"
+              >
+                by {recommendedTrack.artist}
+              </Text>
+            </>
+          )}
+        </group>
       </group>
     </Float>
   );
@@ -101,32 +105,30 @@ const Stars = () => {
   const starsRef = useRef<THREE.Points>(null);
 
   const [positions, colors] = useMemo(() => {
-    const count = 3000; // Увеличиваем количество звезд
+    const count = 3000;
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
 
+    // Используем детерминированные значения вместо Math.random
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
-      const radius = 15 + Math.random() * 35; // Приближаем звезды
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
+      const seed = i * 0.1234; // Детерминированное значение
+      const radius = 15 + (Math.sin(seed) * 0.5 + 0.5) * 35;
+      const theta = (Math.sin(seed * 1.1) * 0.5 + 0.5) * Math.PI * 2;
+      const phi = Math.acos(2 * (Math.sin(seed * 1.3) * 0.5 + 0.5) - 1);
 
       positions[i3] = radius * Math.sin(phi) * Math.cos(theta);
       positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
       positions[i3 + 2] = radius * Math.cos(phi);
 
-      const colorChoice = Math.random();
+      const colorChoice = Math.sin(seed * 1.7) * 0.5 + 0.5;
       if (colorChoice < 0.25) {
-        // Яркие белые звезды
         colors[i3] = 1; colors[i3 + 1] = 1; colors[i3 + 2] = 1;
       } else if (colorChoice < 0.5) {
-        // Фиолетовые звезды
         colors[i3] = 0.9; colors[i3 + 1] = 0.6; colors[i3 + 2] = 1;
       } else if (colorChoice < 0.75) {
-        // Синие звезды
         colors[i3] = 0.4; colors[i3 + 1] = 0.8; colors[i3 + 2] = 1;
       } else {
-        // Розовые звезды
         colors[i3] = 1; colors[i3 + 1] = 0.5; colors[i3 + 2] = 0.8;
       }
     }
@@ -146,23 +148,19 @@ const Stars = () => {
       <bufferGeometry>
         <bufferAttribute
           attach="attributes-position"
-          count={positions.length / 3}
-          array={positions}
-          itemSize={3}
+          args={[positions, 3]}
         />
         <bufferAttribute
           attach="attributes-color"
-          count={colors.length / 3}
-          array={colors}
-          itemSize={3}
+          args={[colors, 3]}
         />
       </bufferGeometry>
       <pointsMaterial 
-        size={0.15} // Увеличиваем размер звезд
+        size={0.15}
         vertexColors 
         transparent 
-        opacity={0.9} // Увеличиваем непрозрачность
-        sizeAttenuation={true} // Звезды становятся меньше с расстоянием
+        opacity={0.9}
+        sizeAttenuation={true}
       />
     </points>
   );
@@ -171,7 +169,9 @@ const Stars = () => {
 const CentralSun = () => {
   const meshRef = useRef<THREE.Mesh>(null);
   const glowRef = useRef<THREE.Mesh>(null);
+  const textGroupRef = useRef<THREE.Group>(null);
   const { username } = useUserStore();
+  const { camera } = useThree();
 
   useFrame((state) => {
     if (meshRef.current) {
@@ -180,6 +180,11 @@ const CentralSun = () => {
     }
     if (glowRef.current) {
       glowRef.current.scale.setScalar(1 + Math.sin(state.clock.elapsedTime) * 0.15);
+    }
+    
+    // Синхронизируем текст с камерой
+    if (textGroupRef.current) {
+      textGroupRef.current.lookAt(camera.position);
     }
   });
 
@@ -197,17 +202,19 @@ const CentralSun = () => {
           metalness={1}
         />
       </Sphere>
-      <Text
-        position={[0, 0, 0]}
-        fontSize={0.2}
-        color="white"
-        anchorX="center"
-        anchorY="middle"
-        outlineWidth={0.02}
-        outlineColor="black"
-      >
-        {username || 'Пользователь'}
-      </Text>
+      
+      {/* Text group that rotates with camera */}
+      <group ref={textGroupRef} position={[0, 2.2, 0]}>
+        <Text
+          position={[0, 0, 0]}
+          fontSize={0.25}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {username || 'Пользователь'}
+        </Text>
+      </group>
     </group>
   );
 };
@@ -216,43 +223,66 @@ const Scene = () => {
   const { topGenres, topTracks } = useUserStore();
 
   const genreOrbs: GenreOrb[] = useMemo(() => {
-    // Создаем mock данные если нет реальных жанров
+    // Создаем всегда 10 планет
+    const planetCount = 10;
+    const orbs: GenreOrb[] = [];
+
+    // Используем реальные жанры если есть, иначе создаем mock данные
     const genres = topGenres.length > 0 ? topGenres : [
-      { name: 'Rock', trackCount: 150, color: '#FFB3BA' },
-      { name: 'Electronic', trackCount: 120, color: '#FFDFBA' },
-      { name: 'Pop', trackCount: 100, color: '#FFFFBA' },
-      { name: 'Hip-Hop', trackCount: 80, color: '#BAFFC9' },
-      { name: 'Jazz', trackCount: 60, color: '#BAE1FF' },
+      { name: 'Rock', trackCount: 150, color: '#F8BBD9' },
+      { name: 'Electronic', trackCount: 120, color: '#E2C2FF' },
+      { name: 'Pop', trackCount: 100, color: '#B8E6B8' },
+      { name: 'Hip-Hop', trackCount: 80, color: '#FFE5CC' },
+      { name: 'Jazz', trackCount: 60, color: '#D4F1F9' },
+      { name: 'Classical', trackCount: 50, color: '#F5E6FF' },
+      { name: 'Indie', trackCount: 45, color: '#FFE1E6' },
+      { name: 'Alternative', trackCount: 40, color: '#E8F5E8' },
+      { name: 'Folk', trackCount: 35, color: '#FFF2E6' },
+      { name: 'Ambient', trackCount: 30, color: '#E6F3FF' },
     ];
 
-    const total = genres.reduce((sum, g) => sum + g.trackCount, 0);
+    // Рассчитываем проценты только для уникальных жанров
+    const uniqueGenres = genres.slice(0, Math.min(genres.length, planetCount));
+    const total = uniqueGenres.reduce((sum, g) => sum + g.trackCount, 0);
 
-    return genres.map((genre, i) => {
-      const angle = (i / genres.length) * Math.PI * 2;
-      const radius = 4 + (i % 2) * 1.5;
-      const percentage = Math.round((genre.trackCount / total) * 100);
+    for (let i = 0; i < planetCount; i++) {
+      const angle = (i / planetCount) * Math.PI * 2;
+      const radius = 4 + (i % 3) * 1.2;
+      
+      // Берем жанр по индексу, если жанров меньше 10, циклически повторяем
+      const genre = genres[i % genres.length];
+      
+      // Для повторяющихся жанров используем уменьшенный процент
+      const basePercentage = Math.round((genre.trackCount / total) * 100);
+      const repetitionFactor = Math.floor(i / genres.length) + 1;
+      const percentage = Math.max(5, Math.round(basePercentage / repetitionFactor)); // Минимум 5%
 
-      // Получаем случайный трек из топ чарта для рекомендации
-      const randomTrack = topTracks.length > 0 
-        ? topTracks[Math.floor(Math.random() * Math.min(topTracks.length, 10))]
+      // Получаем трек по индексу вместо случайного
+      const trackIndex = topTracks.length > 0 
+        ? i % Math.min(topTracks.length, 20)
         : null;
+      const selectedTrack = trackIndex !== null ? topTracks[trackIndex] : null;
 
-      return {
-        name: genre.name,
+      // Детерминированная высота на основе индекса
+      const heightVariation = Math.sin(i * 0.7) * 1.5;
+
+      orbs.push({
         percentage,
-        color: genre.color || '#a855f7',
+        color: genre.color || '#F8BBD9',
         position: [
           Math.cos(angle) * radius,
-          (Math.random() - 0.5) * 2,
+          heightVariation,
           Math.sin(angle) * radius,
         ] as [number, number, number],
-        recommendedTrack: randomTrack ? {
-          name: randomTrack.name,
-          artist: randomTrack.artist,
-          url: randomTrack.url,
+        recommendedTrack: selectedTrack ? {
+          name: selectedTrack.name,
+          artist: selectedTrack.artist,
+          url: selectedTrack.url,
         } : undefined,
-      };
-    });
+      });
+    }
+
+    return orbs;
   }, [topGenres, topTracks]);
 
   return (
@@ -265,8 +295,8 @@ const Scene = () => {
       <Stars />
       <CentralSun />
       
-      {genreOrbs.map((orb) => (
-        <GenreSphere key={orb.name} {...orb} />
+      {genreOrbs.map((orb, index) => (
+        <GenreSphere key={index} {...orb} />
       ))}
       
       <OrbitControls 
@@ -300,15 +330,15 @@ export const GalaxyView = () => {
         animate={{ opacity: 1, y: 0 }}
         className="mb-6"
       >
-        <h2 className="text-3xl font-bold text-gradient-nebula mb-2">Самое яркое</h2>
-        <p className="text-muted-foreground">3D-визуализация чарта топ-5. Вращайте мышью!</p>
+        <h2 className="text-3xl font-bold text-gradient-nebula mb-2">Галактика Рекомендаций</h2>
+        <p className="text-muted-foreground">10 планет с топовыми треками. Вращайте мышью и кликайте для прослушивания!</p>
       </motion.div>
 
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.2 }}
-        className="flex-1 glass-card rounded-2xl overflow-hidden"
+        className="flex-1 bg-gradient-to-b from-indigo-950 via-purple-950 to-black rounded-2xl overflow-hidden border border-white/10"
       >
         <Canvas camera={{ position: [0, 5, 10], fov: 60 }}>
           <Scene />
@@ -323,7 +353,7 @@ export const GalaxyView = () => {
       >
         💡 Используйте мышь для вращения, колёсико для масштабирования
         <br />
-        🎵 Кликните на планету чтобы послушать рекомендованный трек
+        Кликните на планету чтобы послушать рекомендованный трек
       </motion.div>
     </div>
   );

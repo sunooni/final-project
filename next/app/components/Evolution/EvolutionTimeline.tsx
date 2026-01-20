@@ -31,7 +31,7 @@ export const EvolutionTimeline = () => {
     loadTopArtistsOverall,
   } = useUserStore();
 
-  // Автозагрузка при первом рендере
+  // Автозагрузка при первом рендере (только один раз)
   useEffect(() => {
     if (timeline.length === 0 && !isLoadingTimeline && !timelineError) {
       loadTimeline();
@@ -50,7 +50,7 @@ export const EvolutionTimeline = () => {
     }
   }, [topArtistsOverall.length, isLoadingTopArtists, topArtistsError]);
 
-  // Загружаем новую статистику при смене периода
+  // Загружаем статистику при первом рендере и при смене периода
   useEffect(() => {
     if (selectedPeriod && !realListeningStats && !isLoadingRealStats && !realStatsError) {
       loadRealListeningStats(selectedPeriod);

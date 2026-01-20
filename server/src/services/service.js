@@ -283,6 +283,30 @@ class MusicService {
 
     return results;
   }
+
+  async getUserRecentTracksByDateRange(userId, startDate, endDate) {
+    const { Op } = require('sequelize');
+
+    return this.RecentTrack.findAndCountAll({
+      where: {
+        userId,
+        playedAt: {
+          [Op.between]: [startDate, endDate]
+        }
+      },
+      include: [
+        {
+          model: this.Track,
+          as: 'track',
+          include: [
+            { model: this.Artist, as: 'artist' },
+            { model: this.Album, as: 'album' },           
+          ],
+        },
+      ],
+      order: [['playedAt', 'ASC']]
+    });
+  }
 }
 
 const musicService = new MusicService(models);

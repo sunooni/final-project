@@ -82,45 +82,22 @@ interface UserStore {
   loadTopTracks: () => Promise<void>;
   loadUserInfo: () => Promise<void>;
   setUsername: (username: string | null) => void;
+  syncMoodHistory: () => Promise<void>;
 }
 
-// Pastel colors for planets
+// Нежные пастельные цвета для планет
 const pastelColors = [
-  '#FFB3BA', // pastel pink
-  '#FFDFBA', // pastel peach
-  '#FFFFBA', // pastel yellow
-  '#BAFFC9', // pastel mint
-  '#BAE1FF', // pastel blue
-  '#E0BBE4', // pastel lavender
-  '#FFDFD3', // pastel coral
-  '#D4F1F4', // pastel cyan
-  '#FFE5B4', // pastel apricot
-  '#E8D5C4', // pastel beige
+  '#F8BBD9', // очень нежный розовый
+  '#E2C2FF', // нежный лавандовый
+  '#B8E6B8', // нежный мятный
+  '#FFE5CC', // нежный персиковый
+  '#D4F1F9', // нежный голубой
+  '#F5E6FF', // нежный сиреневый
+  '#FFE1E6', // нежный коралловый
+  '#E8F5E8', // нежный зеленый
+  '#FFF2E6', // нежный кремовый
+  '#E6F3FF', // нежный небесный
 ];
-
-// Generate mock listening history for the past year
-const generateMockListeningHistory = (): ListeningDay[] => {
-  const history: ListeningDay[] = [];
-  const today = new Date();
-  const oneYearAgo = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
-  
-  const moods: Array<'joy' | 'energy' | 'calm' | 'sad' | 'love'> = ['joy', 'energy', 'calm', 'sad', 'love'];
-  
-  for (let d = new Date(oneYearAgo); d <= today; d.setDate(d.getDate() + 1)) {
-    const tracks = Math.floor(Math.random() * 50) + 5; // 5-55 tracks per day
-    const mood = moods[Math.floor(Math.random() * moods.length)];
-    const intensity = Math.random(); // 0-1
-    
-    history.push({
-      date: d.toISOString().split('T')[0],
-      tracks,
-      mood,
-      intensity,
-    });
-  }
-  
-  return history;
-};
 
 export const useUserStore = create<UserStore>((set) => ({
   username: null,
@@ -128,7 +105,7 @@ export const useUserStore = create<UserStore>((set) => ({
   topArtists: [],
   topArtistsOverall: [],
   topTracks: [],
-  listeningHistory: generateMockListeningHistory(),
+  listeningHistory: [],
   totalMinutesListened: 125000, // Mock data
   timeline: [],
   selectedPeriod: '12month', // Единый период
@@ -144,6 +121,57 @@ export const useUserStore = create<UserStore>((set) => ({
   topArtistsError: null,
   topTracksError: null,
   dataTimestamp: undefined,
+  syncMoodHistory: async () => {
+    set({ isLoadingMoodHistory: true, moodHistoryError: null });
+    
+    try {
+      // Синхронизируем из Last.fm
+      const syncResponse = await fetch('/api/database/user/mood-history/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ days: 365 }),
+      });
+  
+      if (!syncResponse.ok) {
+        const errorData = await syncResponse.json();
+        throw new Error(errorData.error || 'Ошибка синхронизации');
+      }
+  
+      // После синхронизации загружаем обновленные данные из БД
+      let response;
+      try {
+        response = await fetch('/api/database/user/mood-history?days=365');
+        
+        // Если БД недоступна после синхронизации, загружаем из Last.fm
+        if (!response.ok) {
+          console.log('Database unavailable after sync, loading from Last.fm');
+          response = await fetch('/api/lastfm/user/mood-history?days=365');
+        }
+      } catch (fetchError) {
+        // Если Express сервер не запущен, загружаем из Last.fm
+        console.log('Database server unavailable after sync, loading from Last.fm');
+        response = await fetch('/api/lastfm/user/mood-history?days=365');
+      }
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Ошибка загрузки обновленных данных');
+      }
+  
+      const data = await response.json();
+      set({ 
+        listeningHistory: data.history || [], 
+        isLoadingMoodHistory: false 
+      });
+    } catch (error) {
+      set({ 
+        moodHistoryError: error instanceof Error ? error.message : 'Ошибка синхронизации истории настроения',
+        isLoadingMoodHistory: false 
+      });
+    }
+  },
   setGalaxyData: (genres: Genre[]) => {
     // Assign pastel colors to genres
     const genresWithColors = genres.map((genre, index) => ({
@@ -184,16 +212,37 @@ export const useUserStore = create<UserStore>((set) => ({
     set({ isLoadingMoodHistory: true, moodHistoryError: null });
     
     try {
-      const response = await fetch('/api/lastfm/user/mood-history?days=90');
+      // Сначала пытаемся загрузить из БД
+      let response;
+      try {
+        response = await fetch('/api/database/user/mood-history?days=365');
+      } catch (fetchError) {
+        // Если Express сервер не запущен, используем Last.fm
+        console.log('Database unavailable, falling back to Last.fm');
+        response = await fetch('/api/lastfm/user/mood-history?days=365');
+      }
+      
+      // Если БД пустая или ошибка, используем Last.fm как fallback
+      if (!response.ok || response.status === 404 || response.status === 500) {
+        const responseData = await response.json().catch(() => ({}));
+        // Если это ошибка подключения к Express серверу, используем Last.fm
+        if (response.status === 500 && responseData.error?.includes('fetch failed')) {
+          console.log('Database server unavailable, falling back to Last.fm');
+          response = await fetch('/api/lastfm/user/mood-history?days=365');
+        } else if (response.status === 404 || (response.status === 500 && !responseData.error?.includes('fetch failed'))) {
+          console.log('Database empty, falling back to Last.fm');
+          response = await fetch('/api/lastfm/user/mood-history?days=365');
+        }
+      }
       
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error('Необходима авторизация через Last.fm');
         }
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Ошибка загрузки данных');
       }
-
+  
       const data = await response.json();
       set({ 
         listeningHistory: data.history || [], 
