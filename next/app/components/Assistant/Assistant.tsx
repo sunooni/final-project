@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAssistantStore } from "@/app/stores/useAssistantStore";
 import { motion, AnimatePresence } from "framer-motion";
+import { Sparkles, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 
 const firstMes = 'Привет! 👋 Я твой музыкальный ассистент. Спроси меня о своих вкусах, рекомендациях или статистике!'
@@ -57,8 +59,10 @@ const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
             className="mb-4 w-[350px] h-[500px] bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col overflow-hidden"
           >
             {/* Шапка */}
-            <div className="p-4 bg-zinc-100 dark:bg-zinc-800 font-bold border-b dark:border-zinc-700 flex items-center justify-between">
+            {/* <div className="p-4 bg-zinc-100 dark:bg-zinc-800 font-bold border-b dark:border-zinc-700 flex items-center justify-between">
               <span className="text-zinc-800 dark:text-zinc-200">
+
+
                 🎵 Музыкальный ассистент
               </span>
               <button
@@ -66,6 +70,25 @@ const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
                 className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors text-xl"
               >
                 ✕
+              </button>
+            </div> */}
+            <div className="flex items-center justify-between p-4 border-b border-border/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-primary/10">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-foreground text-sm">
+                    Музыкальный ассистент
+                  </h3>
+                  <p className="text-xs text-muted-foreground">Онлайн</p>
+                </div>
+              </div>
+              <button
+                onClick={toggleAssistant}
+                className="p-2 rounded-full hover:bg-muted/50 transition-colors"
+              >
+                <X className="w-4 h-text-muted-foreground" />
               </button>
             </div>
 
@@ -146,7 +169,9 @@ const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
       {/* Кнопка триггер */}
       <button
         onClick={toggleAssistant}
-        className="w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
+        className="w-14 h-14 bg-zinc-800 hover:bg-gradient-to-r from-purple-500 to-pink-500  text-white rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
+        // className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg"
+        // transition={{ type: "spring", duration: 0.5 }}
         aria-label={isOpen ? "Закрыть ассистента" : "Открыть ассистента"}
       >
         <motion.span animate={{ rotate: isOpen ? 90 : 0 }} className="text-2xl">
