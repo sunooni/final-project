@@ -20,6 +20,11 @@ export const TraksUser = () => {
   const [viewMode, setViewMode] = useState<ViewMode>("loved");
   const [useDatabase, setUseDatabase] = useState(false);
   const hasCheckedAuth = useRef(false);
+  
+  // Пагинация
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalTracks, setTotalTracks] = useState(0);
+  const itemsPerPage = 50;
 
   useEffect(() => {
     if (hasCheckedAuth.current) return;
@@ -43,7 +48,7 @@ export const TraksUser = () => {
     checkAuth();
   }, []);
 
-  const loadTracksFromDB = useCallback(async () => {
+  const loadTracksFromDB = useCallback(async (page: number = 1) => {
     if (!userId) return;
 
     setLoading(true);
@@ -52,23 +57,22 @@ export const TraksUser = () => {
     try {
       const apiUrl =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/music";
+      const offset = (page - 1) * itemsPerPage;
       const dbResponse = await fetch(
-        `${apiUrl}/users/${userId}/loved-tracks?limit=50`
+        `${apiUrl}/users/${userId}/loved-tracks?limit=${itemsPerPage}&offset=${offset}`
       );
 
       if (dbResponse.ok) {
         const dbData = await dbResponse.json();
-        if (
-          dbData.tracks &&
-          Array.isArray(dbData.tracks) &&
-          dbData.tracks.length > 0
-        ) {
+        if (dbData.tracks && Array.isArray(dbData.tracks)) {
           setDbTracks(dbData.tracks);
+          setTotalTracks(dbData.total || 0);
           setShowTracks(true);
           setUseDatabase(true);
           setLovedTracks([]);
         } else {
           setDbTracks([]);
+          setTotalTracks(0);
           setShowTracks(true);
           setUseDatabase(true);
           setLovedTracks([]);
@@ -82,7 +86,7 @@ export const TraksUser = () => {
     }
   }, [userId]);
 
-  const loadRecentTracks = useCallback(async () => {
+  const loadRecentTracks = useCallback(async (page: number = 1) => {
     if (!userId) return;
 
     setLoading(true);
@@ -91,17 +95,20 @@ export const TraksUser = () => {
     try {
       const apiUrl =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/music";
+      const offset = (page - 1) * itemsPerPage;
       const dbResponse = await fetch(
-        `${apiUrl}/users/${userId}/recent-tracks?limit=50`
+        `${apiUrl}/users/${userId}/recent-tracks?limit=${itemsPerPage}&offset=${offset}`
       );
 
       if (dbResponse.ok) {
         const dbData = await dbResponse.json();
         if (dbData.tracks && Array.isArray(dbData.tracks)) {
           setRecentTracks(dbData.tracks);
+          setTotalTracks(dbData.total || 0);
           setShowTracks(true);
         } else {
           setRecentTracks([]);
+          setTotalTracks(0);
           setShowTracks(true);
         }
       }
@@ -115,13 +122,24 @@ export const TraksUser = () => {
 
   useEffect(() => {
     if (userId) {
+      setCurrentPage(1); // Сбрасываем на первую страницу при смене режима
       if (viewMode === "loved") {
-        loadTracksFromDB();
+        loadTracksFromDB(1);
       } else {
-        loadRecentTracks();
+        loadRecentTracks(1);
       }
     }
-  }, [userId, viewMode, loadTracksFromDB, loadRecentTracks]);
+  }, [userId, viewMode]);
+
+  useEffect(() => {
+    if (userId) {
+      if (viewMode === "loved") {
+        loadTracksFromDB(currentPage);
+      } else {
+        loadRecentTracks(currentPage);
+      }
+    }
+  }, [userId, currentPage, viewMode, loadTracksFromDB, loadRecentTracks]);
 
   const syncTracksFromLastfm = async () => {
     if (!isAuthenticated || !userId) {
@@ -163,39 +181,12 @@ export const TraksUser = () => {
       }
 
       // Обновляем данные в зависимости от текущего режима просмотра
-      const apiUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/music";
-
+      setCurrentPage(1); // Сбрасываем на первую страницу после синхронизации
+      
       if (viewMode === "loved") {
-        // Загружаем обновленные любимые треки
-        const dbResponse = await fetch(
-          `${apiUrl}/users/${userId}/loved-tracks?limit=50`
-        );
-
-        if (dbResponse.ok) {
-          const dbData = await dbResponse.json();
-          if (dbData.tracks && Array.isArray(dbData.tracks)) {
-            setDbTracks(dbData.tracks);
-            setShowTracks(true);
-            setUseDatabase(true);
-            setLovedTracks([]);
-          }
-        } else {
-          setError("Не удалось загрузить обновленные треки из базы данных");
-        }
+        await loadTracksFromDB(1);
       } else {
-        // Загружаем обновленную историю прослушивания
-        const recentResponse = await fetch(
-          `${apiUrl}/users/${userId}/recent-tracks?limit=50`
-        );
-
-        if (recentResponse.ok) {
-          const recentData = await recentResponse.json();
-          if (recentData.tracks && Array.isArray(recentData.tracks)) {
-            setRecentTracks(recentData.tracks);
-            setShowTracks(true);
-          }
-        }
+        await loadRecentTracks(1);
       }
     } catch (err) {
       setError(
@@ -208,7 +199,24 @@ export const TraksUser = () => {
   };
 
   const toggleViewMode = () => {
+    setCurrentPage(1); // Сбрасываем на первую страницу при смене режима
     setViewMode((prev) => (prev === "loved" ? "history" : "loved"));
+  };
+
+  const totalPages = Math.ceil(totalTracks / itemsPerPage);
+  const hasNextPage = currentPage < totalPages;
+  const hasPrevPage = currentPage > 1;
+
+  const handleNextPage = () => {
+    if (hasNextPage) {
+      setCurrentPage((prev) => prev + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (hasPrevPage) {
+      setCurrentPage((prev) => prev - 1);
+    }
   };
 
   return (
@@ -347,14 +355,46 @@ export const TraksUser = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="flex-1 overflow-y-auto custom-scrollbar pr-2"
+            className="flex-1 flex flex-col"
           >
-            <LovedTracksList
-              dbTracks={dbTracks}
-              lovedTracks={lovedTracks}
-              useDatabase={useDatabase}
-              loading={loading}
-            />
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+              <LovedTracksList
+                dbTracks={dbTracks}
+                lovedTracks={lovedTracks}
+                useDatabase={useDatabase}
+                loading={loading}
+                totalTracks={totalTracks}
+              />
+            </div>
+            {totalPages > 1 && (
+              <div className="mt-4 flex items-center justify-between border-t border-zinc-200 dark:border-zinc-700 pt-4">
+                <button
+                  onClick={handlePrevPage}
+                  disabled={!hasPrevPage || loading}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    hasPrevPage
+                      ? "bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-black dark:text-zinc-50"
+                      : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
+                  }`}
+                >
+                  Предыдущая
+                </button>
+                <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Страница {currentPage} из {totalPages} (Всего: {totalTracks})
+                </span>
+                <button
+                  onClick={handleNextPage}
+                  disabled={!hasNextPage || loading}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    hasNextPage
+                      ? "bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-black dark:text-zinc-50"
+                      : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
+                  }`}
+                >
+                  Следующая
+                </button>
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -364,12 +404,44 @@ export const TraksUser = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="flex-1 overflow-y-auto custom-scrollbar pr-2"
+            className="flex-1 flex flex-col"
           >
-            <RecentTracksList
-              recentTracks={recentTracks}
-              loading={loading}
-            />
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+              <RecentTracksList
+                recentTracks={recentTracks}
+                loading={loading}
+                totalTracks={totalTracks}
+              />
+            </div>
+            {totalPages > 1 && (
+              <div className="mt-4 flex items-center justify-between border-t border-zinc-200 dark:border-zinc-700 pt-4">
+                <button
+                  onClick={handlePrevPage}
+                  disabled={!hasPrevPage || loading}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    hasPrevPage
+                      ? "bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-black dark:text-zinc-50"
+                      : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
+                  }`}
+                >
+                  Предыдущая
+                </button>
+                <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Страница {currentPage} из {totalPages} (Всего: {totalTracks})
+                </span>
+                <button
+                  onClick={handleNextPage}
+                  disabled={!hasNextPage || loading}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    hasNextPage
+                      ? "bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-black dark:text-zinc-50"
+                      : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
+                  }`}
+                >
+                  Следующая
+                </button>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

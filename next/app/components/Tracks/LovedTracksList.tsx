@@ -8,6 +8,7 @@ interface LovedTracksListProps {
   lovedTracks: Track[];
   useDatabase: boolean;
   loading: boolean;
+  totalTracks?: number;
 }
 
 export const LovedTracksList = ({
@@ -15,8 +16,13 @@ export const LovedTracksList = ({
   lovedTracks,
   useDatabase,
   loading,
+  totalTracks,
 }: LovedTracksListProps) => {
   const hasTracks = useDatabase ? dbTracks.length > 0 : lovedTracks.length > 0;
+  
+  const displayCount = totalTracks !== undefined 
+    ? totalTracks 
+    : (useDatabase ? dbTracks.length : lovedTracks.length);
 
   if (!hasTracks && !loading) {
     return (
@@ -38,7 +44,7 @@ export const LovedTracksList = ({
     <>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-semibold text-black dark:text-zinc-50">
-          Любимые треки ({useDatabase ? dbTracks.length : lovedTracks.length})
+          Любимые треки ({displayCount})
         </h2>
       </div>
 
