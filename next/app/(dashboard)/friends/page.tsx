@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { motion } from 'framer-motion';
-import { SocialHub } from '@/app/components/Social/SocialHub';
+import { motion } from "framer-motion";
+import { Friends } from "@/app/components/Friends/Friends";
 
 export default function FriendsPage() {
   return (
@@ -12,7 +12,7 @@ export default function FriendsPage() {
       transition={{ duration: 0.3 }}
       className="h-[calc(100vh-8rem)]"
     >
-      <SocialHub />
+      <Friends />
     </motion.div>
   );
 }
