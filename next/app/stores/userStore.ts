@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { Mood } from '@/app/utils/moodAnalyzer';
 
 interface Artist {
   name: string;
@@ -16,7 +17,7 @@ interface Genre {
 export interface ListeningDay {
   date: string;
   tracks: number;
-  mood: 'joy' | 'energy' | 'calm' | 'sad' | 'love';
+  mood: Mood;
   intensity: number; // 0-1
 }
 
@@ -24,10 +25,13 @@ interface UserStore {
   topGenres: Genre[];
   topArtists: Artist[];
   listeningHistory: ListeningDay[];
+  isLoadingMoodHistory: boolean;
+  moodHistoryError: string | null;
   dataTimestamp?: number;
   setGalaxyData: (genres: Genre[]) => void;
   clearGalaxyData: () => void;
   setListeningHistory: (history: ListeningDay[]) => void;
+  loadMoodHistory: () => Promise<void>;
 }
 
 // Pastel colors for planets
@@ -72,6 +76,8 @@ export const useUserStore = create<UserStore>((set) => ({
   topGenres: [],
   topArtists: [],
   listeningHistory: generateMockListeningHistory(),
+  isLoadingMoodHistory: false,
+  moodHistoryError: null,
   dataTimestamp: undefined,
   setGalaxyData: (genres: Genre[]) => {
     // Assign pastel colors to genres
@@ -108,5 +114,31 @@ export const useUserStore = create<UserStore>((set) => ({
   },
   setListeningHistory: (history: ListeningDay[]) => {
     set({ listeningHistory: history });
+  },
+  loadMoodHistory: async () => {
+    set({ isLoadingMoodHistory: true, moodHistoryError: null });
+    
+    try {
+      const response = await fetch('/api/lastfm/user/mood-history?days=90');
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Необходима авторизация через Last.fm');
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Ошибка загрузки данных');
+      }
+
+      const data = await response.json();
+      set({ 
+        listeningHistory: data.history || [], 
+        isLoadingMoodHistory: false 
+      });
+    } catch (error) {
+      set({ 
+        moodHistoryError: error instanceof Error ? error.message : 'Ошибка загрузки истории настроения',
+        isLoadingMoodHistory: false 
+      });
+    }
   },
 }));
