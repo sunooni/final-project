@@ -120,3 +120,22 @@ export const recentTracksApi = {
     });
   },
 };
+
+export const moodHistoryApi = {
+  /**
+   * Получить историю настроений из БД
+   */
+  getMoodHistoryFromDB: async (days = 90) => {
+    return fetchApi(`/database/user/mood-history?days=${days}`);
+  },
+
+  /**
+   * Синхронизировать историю настроений из Last.fm
+   */
+  syncMoodHistory: async (days = 90) => {
+    return fetchApi(`/database/user/mood-history/sync`, {
+      method: 'POST',
+      body: JSON.stringify({ days }),
+    });
+  },
+};
