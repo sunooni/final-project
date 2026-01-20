@@ -31,13 +31,10 @@ export const EvolutionTimeline = () => {
     loadTopArtistsOverall,
   } = useUserStore();
 
-  // Автозагрузка при первом рендере
+  // Автозагрузка при первом рендере (только один раз)
   useEffect(() => {
     if (timeline.length === 0 && !isLoadingTimeline && !timelineError) {
       loadTimeline();
-    }
-    if (!realListeningStats && !isLoadingRealStats && !realStatsError) {
-      loadRealListeningStats(selectedPeriod);
     }
     if (topArtistsOverall.length === 0 && !isLoadingTopArtists && !topArtistsError) {
       loadTopArtistsOverall();
@@ -46,24 +43,26 @@ export const EvolutionTimeline = () => {
     timeline.length, 
     isLoadingTimeline, 
     timelineError, 
-    realListeningStats,
-    isLoadingRealStats, 
-    realStatsError, 
     topArtistsOverall.length,
     isLoadingTopArtists,
     topArtistsError,
-    selectedPeriod,
     loadTimeline, 
-    loadRealListeningStats,
     loadTopArtistsOverall
   ]);
 
-  // Загружаем новую статистику при смене периода
+  // Загружаем статистику при первом рендере и при смене периода
   useEffect(() => {
+    // Загружаем только если:
+    // 1. Период выбран
+    // 2. Не идет загрузка
+    // 3. Нет данных для текущего периода или период изменился
     if (selectedPeriod && !isLoadingRealStats) {
-      loadRealListeningStats(selectedPeriod);
+      const needsLoad = !realListeningStats || realListeningStats.period !== selectedPeriod;
+      if (needsLoad) {
+        loadRealListeningStats(selectedPeriod);
+      }
     }
-  }, [selectedPeriod, loadRealListeningStats, isLoadingRealStats]);
+  }, [selectedPeriod, loadRealListeningStats, isLoadingRealStats, realListeningStats]);
 
   // Mock top artists data if empty - теперь используем реальные данные
   const displayArtists = topArtistsOverall.length > 0 ? topArtistsOverall : [

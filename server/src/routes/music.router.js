@@ -21,4 +21,6 @@ musicRouter.route('/users/:userId/recommendations').get(musicController.getTrack
 musicRouter.route('/users/:userId/chat').post(musicController.chat);
 musicRouter.route('/chat').post(musicController.chat);
 
+musicRouter.route('/users/:userId/recent-tracks/date-range').get(musicController.getUserRecentTracksByDateRange);
+
 module.exports = musicRouter;

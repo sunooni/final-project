@@ -188,6 +188,55 @@ class MusicController {
     }
   };
 
+  getUserRecentTracksByDateRange = async (req, res) => {
+    const { userId } = req.params;
+    const { startDate, endDate } = req.query;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ 
+        message: 'startDate and endDate are required' 
+      });
+    }
+      const result = await this.service.getUserRecentTracksByDateRange(
+        parseInt(userId),
+        new Date(startDate),
+        new Date(endDate)
+      );
+
+      const tracks = result.rows.map(recentTrack => ({
+        id: recentTrack.id,
+        userId: recentTrack.userId,
+      trackId: recentTrack.trackId,
+      playedAt: recentTrack.playedAt,
+      createdAt: recentTrack.createdAt,
+      updatedAt: recentTrack.updatedAt,
+      track: recentTrack.track ? {
+        id: recentTrack.track.id,
+        name: recentTrack.track.name,
+        mbid: recentTrack.track.mbid,
+        url: recentTrack.track.url,
+        duration: recentTrack.track.duration,
+        artist: recentTrack.track.artist ? {
+          id: recentTrack.track.artist.id,
+          name: recentTrack.track.artist.name,
+          mbid: recentTrack.track.artist.mbid,
+          url: recentTrack.track.artist.url,
+        } : null,
+        album: recentTrack.track.album ? {
+          id: recentTrack.track.album.id,
+          title: recentTrack.track.album.title,
+          mbid: recentTrack.track.album.mbid,
+          image: recentTrack.track.album.image,
+        } : null,
+      } : null,
+      }));
+
+      res.json({
+        tracks,
+        total: result.count,
+      });
+  };
+
   // AI chat endpoint
   chat = async (req, res) => {
     try {
