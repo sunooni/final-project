@@ -1,4 +1,5 @@
 'use strict';
+
 const { Model } = require('sequelize');
 
 module.exports = (sequelize, DataTypes) => {
@@ -10,13 +11,31 @@ module.exports = (sequelize, DataTypes) => {
   }
   RecentTrack.init(
     {
-      userId: DataTypes.INTEGER,
-      trackId: DataTypes.INTEGER,
-      playedAt: DataTypes.DATE,
+      userId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+          model: 'Users',
+          key: 'id',
+        },
+      },
+      trackId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+          model: 'Tracks',
+          key: 'id',
+        },
+      },
+      playedAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+      },
     },
     {
       sequelize,
       modelName: 'RecentTrack',
+      timestamps: true,
     }
   );
   return RecentTrack;

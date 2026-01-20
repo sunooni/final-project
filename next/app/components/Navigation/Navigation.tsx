@@ -98,7 +98,7 @@ export const Navigation = () => {
             <Sparkles className="w-5 h-5 text-white" />
           </div>
           <span className="text-lg font-semibold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-            Soundscape DNA
+            SoundSpace DNA
           </span>
         </div>
 
