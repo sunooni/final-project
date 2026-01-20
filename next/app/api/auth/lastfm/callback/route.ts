@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { lastfmConfig } from "@/config/lastfm";
 import { generateApiSignature } from "@/app/lib/lastfm";
-import { userApi, lovedTracksApi } from "@/app/lib/api";
+import { userApi, lovedTracksApi, recentTracksApi } from "@/app/lib/api";
 
 /**
  * Sync loved tracks from Last.fm to database in background
@@ -123,6 +123,94 @@ async function syncLovedTracksInBackground(
     // Don't throw - this is a background operation
   }
 }
+
+async function syncRecentTracksInBackground( 
+  userId: number,
+  username: string,
+  sessionKey: string,
+  apiKey: string,
+  sharedSecret: string
+): Promise<void> {
+  
+  const endTimestamp = Math.floor(Date.now() / 1000);
+  const startTimestamp = endTimestamp - (90 * 24 * 60 * 60);
+
+  const fetchRecentTracksPage = async (page: number): Promise<any[]> => {
+    const recentTracksParams: Record<string, string> = {
+      method: "user.getRecentTracks",
+      api_key: apiKey,
+      user: username,
+      from: startTimestamp.toString(),
+      to: endTimestamp.toString(),
+      limit: "200", // Maximum per page
+      page: page.toString(),
+    };
+
+    const recentTracksSig = generateApiSignature(recentTracksParams, sharedSecret);
+    recentTracksParams.api_sig = recentTracksSig;
+    recentTracksParams.format = "json";
+
+    const recentTracksUrl = new URL("https://ws.audioscrobbler.com/2.0/");
+    Object.entries(recentTracksParams).forEach(([key, value]) => {
+      recentTracksUrl.searchParams.set(key, value);
+    });
+
+    const recentTracksResponse = await fetch(recentTracksUrl.toString(), {
+      method: "GET",
+    });
+    if (!recentTracksResponse.ok) {
+      console.error(`Failed to fetch recent tracks page ${page}:`, recentTracksResponse.status);
+      return [];
+    }
+
+    const recentTracksData = await recentTracksResponse.json();
+
+    if (recentTracksData.error) {
+      console.error(`Last.fm API error when fetching recent tracks page ${page}:`, recentTracksData.message);
+      return [];
+    }
+    const tracks = Array.isArray(recentTracksData.recenttracks?.track)
+        ? recentTracksData.recenttracks.track
+        : recentTracksData.recenttracks?.track
+        ? [recentTracksData.recenttracks.track]
+        : [];
+
+      return tracks;
+  };
+  const firstPageTracks = await fetchRecentTracksPage(1);
+  let allTracks = [...firstPageTracks];
+
+  const maxPages = 10; 
+  const delayBetweenPages = 300;
+
+  for (let page = 2; page <= maxPages; page++) {
+    await new Promise((resolve) => setTimeout(resolve, delayBetweenPages));
+    const pageTracks = await fetchRecentTracksPage(page);
+    
+    if(pageTracks.length === 0) {
+      break;
+    }
+    allTracks = allTracks.concat(pageTracks);
+  } 
+  allTracks = allTracks.filter(track => track.date && track.date.uts);
+
+  if (allTracks.length > 0) {
+    const result = await recentTracksApi.syncRecentTracks(userId, allTracks);
+    if (result.error) {
+      console.error("Error syncing recent tracks to database:", result.error);
+    } else {
+      console.log(
+        `Successfully synced ${allTracks.length} recent tracks for user ${userId}`
+      );
+    }
+  } else {
+    console.log(`No recent tracks found for user ${userId} in the last 90 days`);
+  }
+}
+
+
+
+
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -294,6 +382,13 @@ export async function GET(request: NextRequest) {
       syncLovedTracksInBackground(userId, username, sessionKey, apiKey, sharedSecret).catch(
         (error: unknown) => {
           console.error("Background sync error:", error);
+        }
+      );
+
+      // Start background synchronization of recent tracks (don't await to avoid blocking redirect)
+      syncRecentTracksInBackground(userId, username, sessionKey, apiKey, sharedSecret).catch(
+        (error: unknown) => {
+          console.error("Background recent tracks sync error:", error);
         }
       );
     }

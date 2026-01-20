@@ -2,62 +2,26 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Track, DatabaseTrack, RecentTrack } from "./types";
+import { LovedTracksList } from "./LovedTracksList";
+import { RecentTracksList } from "./RecentTracksList";
 
-interface Track {
-  name: string;
-  artist: { "#text": string; mbid?: string };
-  url: string;
-  image?: Array<{ "#text": string; size: string }>;
-  mbid?: string;
-}
-
-interface LovedTracksResponse {
-  success: boolean;
-  lovedtracks?: {
-    track: Track | Track[];
-    "@attr": {
-      page: string;
-      perPage: string;
-      totalPages: string;
-      total: string;
-    };
-  };
-  error?: string;
-}
-
-interface DatabaseTrack {
-  id: number;
-  track: {
-    id: number;
-    name: string;
-    image: string;
-    url: string;
-    artist: {
-      id: number;
-      name: string;
-    };
-    album?: {
-      id: number;
-      title: string;
-      image: string;
-    };
-  };
-  date?: string;
-}
+type ViewMode = "loved" | "history";
 
 export const TraksUser = () => {
   const [lovedTracks, setLovedTracks] = useState<Track[]>([]);
   const [dbTracks, setDbTracks] = useState<DatabaseTrack[]>([]);
+  const [recentTracks, setRecentTracks] = useState<RecentTrack[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showTracks, setShowTracks] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
-  const [useDatabase, setUseDatabase] = useState(false); // По умолчанию загружаем из Last.fm
+  const [viewMode, setViewMode] = useState<ViewMode>("loved");
+  const [useDatabase, setUseDatabase] = useState(false);
   const hasCheckedAuth = useRef(false);
 
   useEffect(() => {
-    // Предотвращаем повторные запросы
     if (hasCheckedAuth.current) return;
     hasCheckedAuth.current = true;
 
@@ -99,13 +63,11 @@ export const TraksUser = () => {
           Array.isArray(dbData.tracks) &&
           dbData.tracks.length > 0
         ) {
-          // Если в БД есть треки, показываем их
           setDbTracks(dbData.tracks);
           setShowTracks(true);
           setUseDatabase(true);
           setLovedTracks([]);
         } else {
-          // Если треков нет в БД, показываем пустой список
           setDbTracks([]);
           setShowTracks(true);
           setUseDatabase(true);
@@ -120,12 +82,46 @@ export const TraksUser = () => {
     }
   }, [userId]);
 
-  useEffect(() => {
-    // Автоматически загружаем треки из БД при наличии userId
-    if (userId) {
-      loadTracksFromDB();
+  const loadRecentTracks = useCallback(async () => {
+    if (!userId) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/music";
+      const dbResponse = await fetch(
+        `${apiUrl}/users/${userId}/recent-tracks?limit=50`
+      );
+
+      if (dbResponse.ok) {
+        const dbData = await dbResponse.json();
+        if (dbData.tracks && Array.isArray(dbData.tracks)) {
+          setRecentTracks(dbData.tracks);
+          setShowTracks(true);
+        } else {
+          setRecentTracks([]);
+          setShowTracks(true);
+        }
+      }
+    } catch (err) {
+      console.error("Ошибка загрузки истории из БД:", err);
+      setError("Ошибка при загрузке истории прослушивания");
+    } finally {
+      setLoading(false);
     }
-  }, [userId, loadTracksFromDB]);
+  }, [userId]);
+
+  useEffect(() => {
+    if (userId) {
+      if (viewMode === "loved") {
+        loadTracksFromDB();
+      } else {
+        loadRecentTracks();
+      }
+    }
+  }, [userId, viewMode, loadTracksFromDB, loadRecentTracks]);
 
   const syncTracksFromLastfm = async () => {
     if (!isAuthenticated || !userId) {
@@ -137,7 +133,6 @@ export const TraksUser = () => {
     setError(null);
 
     try {
-      // Синхронизируем треки из Last.fm с БД
       const syncResponse = await fetch("/api/sync/loved-tracks", {
         method: "POST",
       });
@@ -152,7 +147,6 @@ export const TraksUser = () => {
       const syncData = await syncResponse.json();
       console.log("Треки синхронизированы с БД:", syncData);
 
-      // После синхронизации загружаем обновленные данные из БД
       const apiUrl =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/music";
       const dbResponse = await fetch(
@@ -162,7 +156,6 @@ export const TraksUser = () => {
       if (dbResponse.ok) {
         const dbData = await dbResponse.json();
         if (dbData.tracks && Array.isArray(dbData.tracks)) {
-          // Показываем треки из БД (даже если список пустой)
           setDbTracks(dbData.tracks);
           setShowTracks(true);
           setUseDatabase(true);
@@ -179,6 +172,10 @@ export const TraksUser = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleViewMode = () => {
+    setViewMode((prev) => (prev === "loved" ? "history" : "loved"));
   };
 
   return (
@@ -198,54 +195,109 @@ export const TraksUser = () => {
         )}
 
         {isAuthenticated && (
-          <button
-            onClick={syncTracksFromLastfm}
-            disabled={loading}
-            className="px-6 py-3 bg-[#D51007] hover:bg-[#B00D06] disabled:bg-zinc-400 disabled:cursor-not-allowed text-white rounded-full font-medium transition-colors flex items-center gap-2"
-          >
-            {loading ? (
-              <>
-                <svg
-                  className="animate-spin h-5 w-5"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
+          <div className="flex justify-between items-center gap-4">
+            <button
+              onClick={syncTracksFromLastfm}
+              disabled={loading}
+              className="px-6 py-3 bg-[#D51007] hover:bg-[#B00D06] disabled:bg-zinc-400 disabled:cursor-not-allowed text-white rounded-full font-medium transition-colors flex items-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <svg
+                    className="animate-spin h-5 w-5"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Синхронизация...
+                </>
+              ) : (
+                <>
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
                     stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Синхронизация...
-              </>
-            ) : (
-              <>
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.3" />
-                </svg>
-                Обновить треки из Last.fm
-              </>
-            )}
-          </button>
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.3" />
+                  </svg>
+                  Обновить треки из Last.fm
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={toggleViewMode}
+              disabled={loading}
+              className={`px-6 py-3 rounded-full font-medium transition-colors flex items-center gap-2 ${
+                viewMode === "history"
+                  ? "bg-[#D51007] hover:bg-[#B00D06] text-white"
+                  : "bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-black dark:text-zinc-50"
+              } disabled:bg-zinc-400 disabled:cursor-not-allowed`}
+            >
+              {loading && viewMode === "history" ? (
+                <>
+                  <svg
+                    className="animate-spin h-5 w-5"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Загрузка...
+                </>
+              ) : (
+                <>
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M3 3v18h18M7 16l4-4 4 4 6-6" />
+                  </svg>
+                  {viewMode === "loved" ? "Посмотреть историю" : "Любимые треки"}
+                </>
+              )}
+            </button>
+          </div>
         )}
 
         {error && (
@@ -255,104 +307,38 @@ export const TraksUser = () => {
         )}
       </div>
 
-      <AnimatePresence>
-        {showTracks &&
-          (useDatabase ? dbTracks.length > 0 : lovedTracks.length > 0) && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="flex-1 overflow-y-auto"
-            >
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-black dark:text-zinc-50">
-                  Любимые треки (
-                  {useDatabase ? dbTracks.length : lovedTracks.length})
-                </h2>
-              </div>
+      <AnimatePresence mode="wait">
+        {showTracks && viewMode === "loved" && (
+          <motion.div
+            key="loved"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="flex-1 overflow-y-auto custom-scrollbar pr-2"
+          >
+            <LovedTracksList
+              dbTracks={dbTracks}
+              lovedTracks={lovedTracks}
+              useDatabase={useDatabase}
+              loading={loading}
+            />
+          </motion.div>
+        )}
 
-              <div className="grid gap-3">
-                {/* Отображение треков из базы данных */}
-                {useDatabase && dbTracks.length > 0
-                  ? dbTracks.map((dbTrack, index) => (
-                      <motion.div
-                        key={dbTrack.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.02 }}
-                        className="flex items-center gap-4 p-4 bg-white dark:bg-zinc-800 rounded-lg hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-black dark:text-zinc-50 truncate">
-                            {dbTrack.track.name}
-                          </h3>
-                          <p className="text-sm text-zinc-600 dark:text-zinc-400 truncate">
-                            {dbTrack.track.artist.name}
-                          </p>
-                          {dbTrack.track.album && (
-                            <p className="text-xs text-zinc-500 dark:text-zinc-500 truncate">
-                              {dbTrack.track.album.title}
-                            </p>
-                          )}
-                        </div>
-
-                        <a
-                          href={dbTrack.track.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-4 py-2 bg-[#D51007] hover:bg-[#B00D06] text-white rounded-full text-sm font-medium transition-colors whitespace-nowrap"
-                        >
-                          Открыть на Last.fm
-                        </a>
-                      </motion.div>
-                    ))
-                  : // Отображение треков из Last.fm API
-                    lovedTracks.map((track, index) => (
-                      <motion.div
-                        key={`${track.name}-${track.artist["#text"]}-${index}`}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.02 }}
-                        className="flex items-center gap-4 p-4 bg-white dark:bg-zinc-800 rounded-lg hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-black dark:text-zinc-50 truncate">
-                            {track.name}
-                          </h3>
-                          <p className="text-sm text-zinc-600 dark:text-zinc-400 truncate">
-                            {track.artist["#text"]}
-                          </p>
-                        </div>
-
-                        <a
-                          href={track.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-4 py-2 bg-[#D51007] hover:bg-[#B00D06] text-white rounded-full text-sm font-medium transition-colors whitespace-nowrap"
-                        >
-                          Открыть на Last.fm
-                        </a>
-                      </motion.div>
-                    ))}
-              </div>
-            </motion.div>
-          )}
-
-        {showTracks &&
-          (useDatabase ? dbTracks.length === 0 : lovedTracks.length === 0) &&
-          !loading && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="p-8 text-center"
-            >
-              <p className="text-zinc-600 dark:text-zinc-400 mb-4">
-                {useDatabase
-                  ? "В базе данных пока нет любимых треков. Нажмите кнопку выше, чтобы синхронизировать данные из Last.fm."
-                  : "У вас пока нет любимых треков на Last.fm"}
-              </p>
-            </motion.div>
-          )}
+        {showTracks && viewMode === "history" && (
+          <motion.div
+            key="history"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="flex-1 overflow-y-auto custom-scrollbar pr-2"
+          >
+            <RecentTracksList
+              recentTracks={recentTracks}
+              loading={loading}
+            />
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
