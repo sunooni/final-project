@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { lastfmConfig } from "@/config/lastfm";
 import { generateApiSignature } from "@/app/lib/lastfm";
-import { userApi, lovedTracksApi } from "@/app/lib/api";
+import { userApi, lovedTracksApi, recentTracksApi } from "@/app/lib/api";
 
 /**
  * Sync loved tracks from Last.fm to database in background
@@ -122,6 +122,37 @@ async function syncLovedTracksInBackground(
     console.error("Error in background loved tracks sync:", error);
     // Don't throw - this is a background operation
   }
+}
+
+async function syncRecentTracksInBackground( 
+  userId: number,
+  username: string,
+  sessionKey: string,
+  apiKey: string,
+  sharedSecret: string
+): Promise<void> {
+  
+  const endTimestamp = Math.floor(Date.now() / 1000);
+  const startTimestamp = endTimestamp - (90 * 24 * 60 * 60);
+
+  const fetchRecentTracksPage = async (page: number): Promise<any[]> => {
+    const recentTracksParams: Record<string, string> = {
+      method: "user.getRecentTracks",
+      api_key: apiKey,
+      user: username,
+      from: startTimestamp.toString(),
+      to: endTimestamp.toString(),
+      limit: "200", // Maximum per page
+      page: page.toString(),
+    };
+
+    const recentTracksSig = generateApiSignature(recentTracksParams, sharedSecret);
+    recentTracksParams.api_sig = recentTracksSig;
+    recentTracksParams.format = "json";
+
+    const recentTracksUrl = new URL("https://ws.audioscrobbler.com/2.0/")
+  }
+
 }
 
 export async function GET(request: NextRequest) {
