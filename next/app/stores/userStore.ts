@@ -30,6 +30,14 @@ interface TopArtistOverall {
   image?: string | null;
 }
 
+interface RealListeningStats {
+  period: Period;
+  playcount: number;
+  minutes: number;
+  hours: number;
+  days: number;
+}
+
 interface UserStore {
   topGenres: Genre[];
   topArtists: Artist[];
@@ -37,16 +45,15 @@ interface UserStore {
   listeningHistory: ListeningDay[];
   totalMinutesListened: number;
   timeline: TimelineItem[];
-  selectedPeriod: Period;
-  statsPeriod: Period;
-  listeningStats: Record<Period, { minutes: number; playcount: number }>;
+  selectedPeriod: Period; // Единый период для всего
+  realListeningStats: RealListeningStats | null;
   isLoadingMoodHistory: boolean;
   isLoadingTimeline: boolean;
-  isLoadingStats: boolean;
+  isLoadingRealStats: boolean;
   isLoadingTopArtists: boolean;
   moodHistoryError: string | null;
   timelineError: string | null;
-  statsError: string | null;
+  realStatsError: string | null;
   topArtistsError: string | null;
   dataTimestamp?: number;
   setGalaxyData: (genres: Genre[]) => void;
@@ -55,9 +62,8 @@ interface UserStore {
   loadMoodHistory: () => Promise<void>;
   setTotalMinutesListened: (minutes: number) => void;
   setSelectedPeriod: (period: Period) => void;
-  setStatsPeriod: (period: Period) => void;
   loadTimeline: () => Promise<void>;
-  loadListeningStats: () => Promise<void>;
+  loadRealListeningStats: (period: Period) => Promise<void>;
   loadTopArtistsOverall: () => Promise<void>;
 }
 
@@ -106,16 +112,15 @@ export const useUserStore = create<UserStore>((set) => ({
   listeningHistory: generateMockListeningHistory(),
   totalMinutesListened: 125000, // Mock data
   timeline: [],
-  selectedPeriod: '12month',
-  statsPeriod: '12month',
-  listeningStats: {} as Record<Period, { minutes: number; playcount: number }>,
+  selectedPeriod: '12month', // Единый период
+  realListeningStats: null,
   isLoadingMoodHistory: false,
   isLoadingTimeline: false,
-  isLoadingStats: false,
+  isLoadingRealStats: false,
   isLoadingTopArtists: false,
   moodHistoryError: null,
   timelineError: null,
-  statsError: null,
+  realStatsError: null,
   topArtistsError: null,
   dataTimestamp: undefined,
   setGalaxyData: (genres: Genre[]) => {
@@ -186,9 +191,6 @@ export const useUserStore = create<UserStore>((set) => ({
   setSelectedPeriod: (period: Period) => {
     set({ selectedPeriod: period });
   },
-  setStatsPeriod: (period: Period) => {
-    set({ statsPeriod: period });
-  },
   loadTimeline: async () => {
     set({ isLoadingTimeline: true, timelineError: null });
     
@@ -215,11 +217,11 @@ export const useUserStore = create<UserStore>((set) => ({
       });
     }
   },
-  loadListeningStats: async () => {
-    set({ isLoadingStats: true, statsError: null });
+  loadRealListeningStats: async (period: Period) => {
+    set({ isLoadingRealStats: true, realStatsError: null });
     
     try {
-      const response = await fetch('/api/lastfm/user/listening-stats');
+      const response = await fetch(`/api/lastfm/user/real-listening-stats?period=${period}`);
       
       if (!response.ok) {
         if (response.status === 401) {
@@ -231,13 +233,13 @@ export const useUserStore = create<UserStore>((set) => ({
 
       const data = await response.json();
       set({ 
-        listeningStats: data.stats || {}, 
-        isLoadingStats: false 
+        realListeningStats: data, 
+        isLoadingRealStats: false 
       });
     } catch (error) {
       set({ 
-        statsError: error instanceof Error ? error.message : 'Ошибка загрузки статистики',
-        isLoadingStats: false 
+        realStatsError: error instanceof Error ? error.message : 'Ошибка загрузки статистики',
+        isLoadingRealStats: false 
       });
     }
   },

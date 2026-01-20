@@ -18,18 +18,16 @@ export const EvolutionTimeline = () => {
     topArtistsOverall,
     timeline,
     selectedPeriod,
-    statsPeriod,
-    listeningStats,
+    realListeningStats,
     isLoadingTimeline,
-    isLoadingStats,
+    isLoadingRealStats,
     isLoadingTopArtists,
     timelineError,
-    statsError,
+    realStatsError,
     topArtistsError,
     setSelectedPeriod,
-    setStatsPeriod,
     loadTimeline,
-    loadListeningStats,
+    loadRealListeningStats,
     loadTopArtistsOverall,
   } = useUserStore();
 
@@ -38,8 +36,8 @@ export const EvolutionTimeline = () => {
     if (timeline.length === 0 && !isLoadingTimeline && !timelineError) {
       loadTimeline();
     }
-    if (Object.keys(listeningStats).length === 0 && !isLoadingStats && !statsError) {
-      loadListeningStats();
+    if (!realListeningStats && !isLoadingRealStats && !realStatsError) {
+      loadRealListeningStats(selectedPeriod);
     }
     if (topArtistsOverall.length === 0 && !isLoadingTopArtists && !topArtistsError) {
       loadTopArtistsOverall();
@@ -48,16 +46,24 @@ export const EvolutionTimeline = () => {
     timeline.length, 
     isLoadingTimeline, 
     timelineError, 
-    listeningStats, 
-    isLoadingStats, 
-    statsError, 
+    realListeningStats,
+    isLoadingRealStats, 
+    realStatsError, 
     topArtistsOverall.length,
     isLoadingTopArtists,
     topArtistsError,
+    selectedPeriod,
     loadTimeline, 
-    loadListeningStats,
+    loadRealListeningStats,
     loadTopArtistsOverall
   ]);
+
+  // Загружаем новую статистику при смене периода
+  useEffect(() => {
+    if (selectedPeriod && !isLoadingRealStats) {
+      loadRealListeningStats(selectedPeriod);
+    }
+  }, [selectedPeriod, loadRealListeningStats, isLoadingRealStats]);
 
   // Mock top artists data if empty - теперь используем реальные данные
   const displayArtists = topArtistsOverall.length > 0 ? topArtistsOverall : [
@@ -110,7 +116,7 @@ export const EvolutionTimeline = () => {
           <p className="text-muted-foreground">Как менялся ваш музыкальный путь через время</p>
         </div>
 
-        {/* Переключатель периодов */}
+        {/* Единый переключатель периодов */}
         <div className="inline-flex rounded-full bg-black/20 p-1 glass-card">
           {periodOptions.map((opt) => (
             <button
@@ -201,40 +207,22 @@ export const EvolutionTimeline = () => {
           transition={{ delay: 0.4 }}
           className="w-80 space-y-6"
         >
-          {/* Переключатель периодов для статистики */}
-          <div className="mb-4 inline-flex rounded-full bg-black/20 p-1 glass-card">
-            {periodOptions.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setStatsPeriod(opt.value)}
-                className={cn(
-                  'px-3 py-1 text-xs rounded-full transition-colors',
-                  statsPeriod === opt.value
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-                    : 'text-gray-300 hover:bg-white/10'
-                )}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
           {/* Total listening time */}
           <div className="glass-card rounded-2xl p-6 text-center">
             <Music className="w-10 h-10 mx-auto mb-4 text-purple-500" />
             <p className="text-4xl font-bold text-gradient-nebula">
-              {Math.round((listeningStats[statsPeriod]?.minutes || 0) / 60).toLocaleString()}
+              {realListeningStats?.hours?.toLocaleString() || '0'}
             </p>
             <p className="text-muted-foreground mt-1">часов музыки</p>
             <p className="text-sm text-muted-foreground mt-3">
-              Это {Math.round((listeningStats[statsPeriod]?.minutes || 0) / 60 / 24)} дней непрерывного прослушивания
+              Это {realListeningStats?.days || 0} дней непрерывного прослушивания
               <br />
-              <span className="text-xs">за {periodOptions.find(p => p.value === statsPeriod)?.label}</span>
+              <span className="text-xs">за {periodOptions.find(p => p.value === selectedPeriod)?.label}</span>
             </p>
             <div className="mt-4 pt-4 border-t border-white/10">
               <p className="text-sm text-muted-foreground">Всего треков</p>
               <p className="text-2xl font-bold text-gradient-nebula">
-                {(listeningStats[statsPeriod]?.playcount || 0).toLocaleString()}
+                {realListeningStats?.playcount?.toLocaleString() || '0'}
               </p>
             </div>
           </div>
