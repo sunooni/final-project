@@ -219,18 +219,6 @@ export const EvolutionTimeline = () => {
               ))}
             </div>
           </div>
-
-          {/* Fun fact */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8 }}
-            className="glass-card rounded-2xl p-6 border-2 border-purple-500/30"
-          >
-            <p className="text-sm">
-              🎵 <span className="font-semibold">Интересный факт:</span> Вы слушаете электронную музыку на 43% больше по вечерам, чем утром!
-            </p>
-          </motion.div>
         </motion.div>
       </div>
     </div>
