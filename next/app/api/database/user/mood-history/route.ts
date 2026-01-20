@@ -24,7 +24,7 @@ export interface ListeningDay {
   
       // 2. Получить параметры запроса
       const { searchParams } = new URL(request.url);
-      const days = parseInt(searchParams.get('days') || '90');
+      const days = parseInt(searchParams.get('days') || '365');
       
       const endDate = new Date();
       const startDate = new Date();

@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   
       // Получить параметры
       const body = await request.json().catch(() => ({}));
-      const days = body.days || 90;
+      const days = body.days || 365;
   
       const endTimestamp = Math.floor(Date.now() / 1000);
       const startTimestamp = endTimestamp - (days * 24 * 60 * 60);

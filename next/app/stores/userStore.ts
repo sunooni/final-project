@@ -131,7 +131,7 @@ export const useUserStore = create<UserStore>((set) => ({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ days: 90 }),
+        body: JSON.stringify({ days: 365 }),
       });
   
       if (!syncResponse.ok) {
@@ -142,17 +142,17 @@ export const useUserStore = create<UserStore>((set) => ({
       // После синхронизации загружаем обновленные данные из БД
       let response;
       try {
-        response = await fetch('/api/database/user/mood-history?days=90');
+        response = await fetch('/api/database/user/mood-history?days=365');
         
         // Если БД недоступна после синхронизации, загружаем из Last.fm
         if (!response.ok) {
           console.log('Database unavailable after sync, loading from Last.fm');
-          response = await fetch('/api/lastfm/user/mood-history?days=90');
+          response = await fetch('/api/lastfm/user/mood-history?days=365');
         }
       } catch (fetchError) {
         // Если Express сервер не запущен, загружаем из Last.fm
         console.log('Database server unavailable after sync, loading from Last.fm');
-        response = await fetch('/api/lastfm/user/mood-history?days=90');
+        response = await fetch('/api/lastfm/user/mood-history?days=365');
       }
       
       if (!response.ok) {
@@ -215,11 +215,11 @@ export const useUserStore = create<UserStore>((set) => ({
       // Сначала пытаемся загрузить из БД
       let response;
       try {
-        response = await fetch('/api/database/user/mood-history?days=90');
+        response = await fetch('/api/database/user/mood-history?days=365');
       } catch (fetchError) {
         // Если Express сервер не запущен, используем Last.fm
         console.log('Database unavailable, falling back to Last.fm');
-        response = await fetch('/api/lastfm/user/mood-history?days=90');
+        response = await fetch('/api/lastfm/user/mood-history?days=365');
       }
       
       // Если БД пустая или ошибка, используем Last.fm как fallback
@@ -228,10 +228,10 @@ export const useUserStore = create<UserStore>((set) => ({
         // Если это ошибка подключения к Express серверу, используем Last.fm
         if (response.status === 500 && responseData.error?.includes('fetch failed')) {
           console.log('Database server unavailable, falling back to Last.fm');
-          response = await fetch('/api/lastfm/user/mood-history?days=90');
+          response = await fetch('/api/lastfm/user/mood-history?days=365');
         } else if (response.status === 404 || (response.status === 500 && !responseData.error?.includes('fetch failed'))) {
           console.log('Database empty, falling back to Last.fm');
-          response = await fetch('/api/lastfm/user/mood-history?days=90');
+          response = await fetch('/api/lastfm/user/mood-history?days=365');
         }
       }
       

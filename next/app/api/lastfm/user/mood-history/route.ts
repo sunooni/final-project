@@ -42,7 +42,7 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const days = parseInt(searchParams.get('days') || '90'); // Уменьшаем до 90 дней для быстрой загрузки
+    const days = parseInt(searchParams.get('days') || '365'); // Последний год
 
     const endTimestamp = Math.floor(Date.now() / 1000);
     const startTimestamp = endTimestamp - (days * 24 * 60 * 60);
