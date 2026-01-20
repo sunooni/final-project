@@ -22,17 +22,32 @@ export interface ListeningDay {
   intensity: number; // 0-1
 }
 
+interface TopArtistOverall {
+  name: string;
+  playcount: number;
+  url: string;
+  mbid?: string;
+  image?: string | null;
+}
+
 interface UserStore {
   topGenres: Genre[];
   topArtists: Artist[];
+  topArtistsOverall: TopArtistOverall[];
   listeningHistory: ListeningDay[];
   totalMinutesListened: number;
   timeline: TimelineItem[];
   selectedPeriod: Period;
+  statsPeriod: Period;
+  listeningStats: Record<Period, { minutes: number; playcount: number }>;
   isLoadingMoodHistory: boolean;
   isLoadingTimeline: boolean;
+  isLoadingStats: boolean;
+  isLoadingTopArtists: boolean;
   moodHistoryError: string | null;
   timelineError: string | null;
+  statsError: string | null;
+  topArtistsError: string | null;
   dataTimestamp?: number;
   setGalaxyData: (genres: Genre[]) => void;
   clearGalaxyData: () => void;
@@ -40,7 +55,10 @@ interface UserStore {
   loadMoodHistory: () => Promise<void>;
   setTotalMinutesListened: (minutes: number) => void;
   setSelectedPeriod: (period: Period) => void;
+  setStatsPeriod: (period: Period) => void;
   loadTimeline: () => Promise<void>;
+  loadListeningStats: () => Promise<void>;
+  loadTopArtistsOverall: () => Promise<void>;
 }
 
 // Pastel colors for planets
@@ -84,14 +102,21 @@ const generateMockListeningHistory = (): ListeningDay[] => {
 export const useUserStore = create<UserStore>((set) => ({
   topGenres: [],
   topArtists: [],
+  topArtistsOverall: [],
   listeningHistory: generateMockListeningHistory(),
   totalMinutesListened: 125000, // Mock data
   timeline: [],
   selectedPeriod: '12month',
+  statsPeriod: '12month',
+  listeningStats: {} as Record<Period, { minutes: number; playcount: number }>,
   isLoadingMoodHistory: false,
   isLoadingTimeline: false,
+  isLoadingStats: false,
+  isLoadingTopArtists: false,
   moodHistoryError: null,
   timelineError: null,
+  statsError: null,
+  topArtistsError: null,
   dataTimestamp: undefined,
   setGalaxyData: (genres: Genre[]) => {
     // Assign pastel colors to genres
@@ -161,6 +186,9 @@ export const useUserStore = create<UserStore>((set) => ({
   setSelectedPeriod: (period: Period) => {
     set({ selectedPeriod: period });
   },
+  setStatsPeriod: (period: Period) => {
+    set({ statsPeriod: period });
+  },
   loadTimeline: async () => {
     set({ isLoadingTimeline: true, timelineError: null });
     
@@ -184,6 +212,58 @@ export const useUserStore = create<UserStore>((set) => ({
       set({ 
         timelineError: error instanceof Error ? error.message : 'Ошибка загрузки временной шкалы',
         isLoadingTimeline: false 
+      });
+    }
+  },
+  loadListeningStats: async () => {
+    set({ isLoadingStats: true, statsError: null });
+    
+    try {
+      const response = await fetch('/api/lastfm/user/listening-stats');
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Необходима авторизация через Last.fm');
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Ошибка загрузки данных');
+      }
+
+      const data = await response.json();
+      set({ 
+        listeningStats: data.stats || {}, 
+        isLoadingStats: false 
+      });
+    } catch (error) {
+      set({ 
+        statsError: error instanceof Error ? error.message : 'Ошибка загрузки статистики',
+        isLoadingStats: false 
+      });
+    }
+  },
+  loadTopArtistsOverall: async () => {
+    set({ isLoadingTopArtists: true, topArtistsError: null });
+    
+    try {
+      const response = await fetch('/api/lastfm/user/top-artists-overall?limit=10');
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Необходима авторизация через Last.fm');
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Ошибка загрузки данных');
+      }
+
+      const data = await response.json();
+      set({ 
+        topArtistsOverall: data.artists || [], 
+        isLoadingTopArtists: false 
+      });
+    } catch (error) {
+      set({ 
+        topArtistsError: error instanceof Error ? error.message : 'Ошибка загрузки топ артистов',
+        isLoadingTopArtists: false 
       });
     }
   },

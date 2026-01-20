@@ -15,14 +15,22 @@ const periodOptions: { value: Period; label: string }[] = [
 
 export const EvolutionTimeline = () => {
   const {
-    totalMinutesListened,
-    topArtists,
+    topArtistsOverall,
     timeline,
     selectedPeriod,
+    statsPeriod,
+    listeningStats,
     isLoadingTimeline,
+    isLoadingStats,
+    isLoadingTopArtists,
     timelineError,
+    statsError,
+    topArtistsError,
     setSelectedPeriod,
+    setStatsPeriod,
     loadTimeline,
+    loadListeningStats,
+    loadTopArtistsOverall,
   } = useUserStore();
 
   // Автозагрузка при первом рендере
@@ -30,15 +38,34 @@ export const EvolutionTimeline = () => {
     if (timeline.length === 0 && !isLoadingTimeline && !timelineError) {
       loadTimeline();
     }
-  }, [timeline.length, isLoadingTimeline, timelineError, loadTimeline]);
+    if (Object.keys(listeningStats).length === 0 && !isLoadingStats && !statsError) {
+      loadListeningStats();
+    }
+    if (topArtistsOverall.length === 0 && !isLoadingTopArtists && !topArtistsError) {
+      loadTopArtistsOverall();
+    }
+  }, [
+    timeline.length, 
+    isLoadingTimeline, 
+    timelineError, 
+    listeningStats, 
+    isLoadingStats, 
+    statsError, 
+    topArtistsOverall.length,
+    isLoadingTopArtists,
+    topArtistsError,
+    loadTimeline, 
+    loadListeningStats,
+    loadTopArtistsOverall
+  ]);
 
-  // Mock top artists data if empty
-  const mockTopArtists = topArtists.length > 0 ? topArtists : [
-    { name: 'Radiohead', trackCount: 1250, url: '#' },
-    { name: 'Daft Punk', trackCount: 980, url: '#' },
-    { name: 'Kendrick Lamar', trackCount: 875, url: '#' },
-    { name: 'Frank Ocean', trackCount: 720, url: '#' },
-    { name: 'Tame Impala', trackCount: 650, url: '#' },
+  // Mock top artists data if empty - теперь используем реальные данные
+  const displayArtists = topArtistsOverall.length > 0 ? topArtistsOverall : [
+    { name: 'Radiohead', playcount: 1250, url: '#' },
+    { name: 'Daft Punk', playcount: 980, url: '#' },
+    { name: 'Kendrick Lamar', playcount: 875, url: '#' },
+    { name: 'Frank Ocean', playcount: 720, url: '#' },
+    { name: 'Tame Impala', playcount: 650, url: '#' },
   ];
 
   const activeItem = timeline.find((t) => t.period === selectedPeriod);
@@ -174,23 +201,49 @@ export const EvolutionTimeline = () => {
           transition={{ delay: 0.4 }}
           className="w-80 space-y-6"
         >
+          {/* Переключатель периодов для статистики */}
+          <div className="mb-4 inline-flex rounded-full bg-black/20 p-1 glass-card">
+            {periodOptions.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setStatsPeriod(opt.value)}
+                className={cn(
+                  'px-3 py-1 text-xs rounded-full transition-colors',
+                  statsPeriod === opt.value
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                    : 'text-gray-300 hover:bg-white/10'
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
           {/* Total listening time */}
           <div className="glass-card rounded-2xl p-6 text-center">
             <Music className="w-10 h-10 mx-auto mb-4 text-purple-500" />
             <p className="text-4xl font-bold text-gradient-nebula">
-              {Math.round(totalMinutesListened / 60).toLocaleString()}
+              {Math.round((listeningStats[statsPeriod]?.minutes || 0) / 60).toLocaleString()}
             </p>
             <p className="text-muted-foreground mt-1">часов музыки</p>
             <p className="text-sm text-muted-foreground mt-3">
-              Это {Math.round(totalMinutesListened / 60 / 24)} дней непрерывного прослушивания
+              Это {Math.round((listeningStats[statsPeriod]?.minutes || 0) / 60 / 24)} дней непрерывного прослушивания
+              <br />
+              <span className="text-xs">за {periodOptions.find(p => p.value === statsPeriod)?.label}</span>
             </p>
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <p className="text-sm text-muted-foreground">Всего треков</p>
+              <p className="text-2xl font-bold text-gradient-nebula">
+                {(listeningStats[statsPeriod]?.playcount || 0).toLocaleString()}
+              </p>
+            </div>
           </div>
 
           {/* Top artists all time */}
           <div className="glass-card rounded-2xl p-6">
             <h3 className="text-lg font-semibold mb-4">Топ артисты всех времён</h3>
             <div className="space-y-3">
-              {mockTopArtists.slice(0, 5).map((artist, index) => (
+              {displayArtists.slice(0, 5).map((artist, index) => (
                 <motion.div 
                   key={artist.name}
                   initial={{ opacity: 0, x: 20 }}
@@ -204,14 +257,14 @@ export const EvolutionTimeline = () => {
                   <div className="flex-1">
                     <p className="font-medium">{artist.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {artist.trackCount} прослушиваний
+                      {artist.playcount.toLocaleString()} прослушиваний
                     </p>
                   </div>
                   <div className="w-12 h-1 bg-muted rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
                       style={{ 
-                        width: `${(artist.trackCount / mockTopArtists[0].trackCount) * 100}%` 
+                        width: `${(artist.playcount / displayArtists[0].playcount) * 100}%` 
                       }}
                     />
                   </div>
