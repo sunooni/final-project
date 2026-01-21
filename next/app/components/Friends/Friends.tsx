@@ -391,8 +391,11 @@ export const Friends = () => {
 
             {selectedFriend ? (
               <div className="space-y-4">
-                {/* Friend Info */}
-                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                {/* Friend Info - теперь кликабельная */}
+                <div 
+                  className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/40 transition-colors"
+                  onClick={() => window.open(selectedFriend.url, '_blank')}
+                >
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-nebula-purple to-nebula-pink flex items-center justify-center font-bold overflow-hidden">
                     {(() => {
                       const avatarUrl = getAvatarUrl(selectedFriend.avatar);
@@ -413,9 +416,12 @@ export const Friends = () => {
                       );
                     })()}
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="font-medium">{selectedFriend.realname || selectedFriend.name}</p>
                     <p className="text-sm text-muted-foreground">@{selectedFriend.name}</p>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Нажмите для перехода в профиль
                   </div>
                 </div>
 
@@ -502,22 +508,14 @@ export const Friends = () => {
                       </motion.div>
                     )}
 
-                    {/* Actions */}
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="cosmic" 
-                        className="flex-1"
-                        onClick={() => window.open(recentTrack.url, '_blank')}
-                      >
-                        Открыть в Last.fm
-                      </Button>
-                      <Button 
-                        variant="glass"
-                        onClick={() => window.open(selectedFriend.url, '_blank')}
-                      >
-                        Профиль
-                      </Button>
-                    </div>
+                    {/* Actions - только кнопка Last.fm */}
+                    <Button 
+                      variant="cosmic" 
+                      className="w-full"
+                      onClick={() => window.open(recentTrack.url, '_blank')}
+                    >
+                      Открыть в Last.fm
+                    </Button>
                   </div>
                 ) : (
                   <div className="text-center py-6">
