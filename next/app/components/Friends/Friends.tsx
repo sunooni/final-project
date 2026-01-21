@@ -19,7 +19,7 @@ interface Friend {
 export const Friends = () => {
   const [gameActive, setGameActive] = useState(false);
   const [gameArtist, setGameArtist] = useState("");
-  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
+  const [selectedFriend, setSelectedFriend] = useState<Friend  | null>(null);
   const [friendsWithArtists, setFriendsWithArtists] = useState<Map<string, string>>(new Map());
   const [loadingArtists, setLoadingArtists] = useState<Set<string>>(new Set());
 

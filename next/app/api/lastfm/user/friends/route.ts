@@ -34,17 +34,19 @@ export async function GET() {
       : [data.friends.user];
 
     // Format friends data for frontend consumption
-    const formattedFriends = friendsList.map((friend: Record<string, any>) => ({
-      id: friend.name, // Use name as ID
-      name: friend.name,
-      realname: friend.realname || friend.name,
-      avatar: friend.image || [], // Array of images in different sizes
-      url: friend.url,
-      playcount: friend.playcount || "0",
-      registered: friend.registered,
-      // Compatibility score can be calculated by comparing music tastes
-      compatibility: Math.floor(Math.random() * 40) + 60, // 60-100%
-    }));
+    const formattedFriends = friendsList.map(
+      (friend: Record<string, unknown>) => ({
+        id: friend.name, // Use name as ID
+        name: friend.name,
+        realname: friend.realname || friend.name,
+        avatar: friend.image || [], // Array of images in different sizes
+        url: friend.url,
+        playcount: friend.playcount || "0",
+        registered: friend.registered,
+        // Compatibility score can be calculated by comparing music tastes
+        compatibility: Math.floor(Math.random() * 40) + 60, // 60-100%
+      })
+    );
 
     return NextResponse.json({
       success: true,
