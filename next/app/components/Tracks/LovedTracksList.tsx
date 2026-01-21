@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { Music } from "lucide-react";
 import { DatabaseTrack, Track } from "./types";
 
 interface LovedTracksListProps {
@@ -58,6 +59,17 @@ export const LovedTracksList = ({
                 transition={{ delay: index * 0.02 }}
                 className="flex items-center gap-4 p-4 bg-white dark:bg-zinc-800 rounded-lg hover:shadow-md transition-shadow"
               >
+                {dbTrack.track.image ? (
+                  <img 
+                    src={dbTrack.track.image} 
+                    alt={`${dbTrack.track.artist.name} - ${dbTrack.track.name}`}
+                    className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
+                    <Music className="w-8 h-8 text-white" />
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <h3 className="font-medium text-black dark:text-zinc-50 truncate">
                     {dbTrack.track.name}
@@ -82,33 +94,47 @@ export const LovedTracksList = ({
                 </a>
               </motion.div>
             ))
-          : lovedTracks.map((track, index) => (
-              <motion.div
-                key={`${track.name}-${track.artist["#text"]}-${index}`}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.02 }}
-                className="flex items-center gap-4 p-4 bg-white dark:bg-zinc-800 rounded-lg hover:shadow-md transition-shadow"
-              >
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-black dark:text-zinc-50 truncate">
-                    {track.name}
-                  </h3>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400 truncate">
-                    {track.artist["#text"]}
-                  </p>
-                </div>
-
-                <a
-                  href={track.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 bg-[#D51007] hover:bg-[#B00D06] text-white rounded-full text-sm font-medium transition-colors whitespace-nowrap"
+          : lovedTracks.map((track, index) => {
+              const trackImage = track.image?.[2]?.["#text"] || null;
+              return (
+                <motion.div
+                  key={`${track.name}-${track.artist["#text"]}-${index}`}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.02 }}
+                  className="flex items-center gap-4 p-4 bg-white dark:bg-zinc-800 rounded-lg hover:shadow-md transition-shadow"
                 >
-                  Открыть на Last.fm
-                </a>
-              </motion.div>
-            ))}
+                  {trackImage ? (
+                    <img 
+                      src={trackImage} 
+                      alt={`${track.artist["#text"]} - ${track.name}`}
+                      className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
+                      <Music className="w-8 h-8 text-white" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-black dark:text-zinc-50 truncate">
+                      {track.name}
+                    </h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 truncate">
+                      {track.artist["#text"]}
+                    </p>
+                  </div>
+
+                  <a
+                    href={track.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-[#D51007] hover:bg-[#B00D06] text-white rounded-full text-sm font-medium transition-colors whitespace-nowrap"
+                  >
+                    Открыть на Last.fm
+                  </a>
+                </motion.div>
+              );
+            })}
       </div>
     </>
   );

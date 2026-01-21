@@ -10,6 +10,51 @@ class MusicService {
     this.RecentTrack = RecentTrack;
   }
 
+  // Helper method to extract valid image URL from Last.fm image array
+  extractImageUrl(imageData) {
+    if (!imageData) return null;
+    
+    // If it's already a string, check if it's valid
+    if (typeof imageData === 'string') {
+      return imageData.trim() !== '' && !this.isPlaceholderImage(imageData) ? imageData : null;
+    }
+    
+    // If it's an array, find the best available image
+    if (Array.isArray(imageData)) {
+      // Try to find images in order of preference: large, extralarge, medium, small
+      const preferredSizes = ['large', 'extralarge', 'medium', 'small'];
+      
+      for (const size of preferredSizes) {
+        const img = imageData.find((img) => img.size === size);
+        if (img && img['#text'] && img['#text'].trim() !== '' && !this.isPlaceholderImage(img['#text'])) {
+          return img['#text'];
+        }
+      }
+      
+      // If no preferred size found, try the last non-empty image
+      for (let i = imageData.length - 1; i >= 0; i--) {
+        const img = imageData[i];
+        if (img && img['#text'] && img['#text'].trim() !== '' && !this.isPlaceholderImage(img['#text'])) {
+          return img['#text'];
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  // Check if image URL is a placeholder (Last.fm uses specific placeholder IDs)
+  isPlaceholderImage(url) {
+    if (!url || typeof url !== 'string') return true;
+    // Last.fm placeholder images often contain these IDs or are empty
+    const placeholderPatterns = [
+      '2a96cbd8b46e442fc41c2b86b821562f', // Common Last.fm placeholder
+      'c6f59c1e5e7240a4c0d427abd71f3dbb', // Another placeholder
+      '4128a6eb29f94943c9d206c08e625904', // Another placeholder
+    ];
+    return placeholderPatterns.some(pattern => url.includes(pattern));
+  }
+
   // User methods
   async getUserByLastfmUsername(username) {
     return this.User.findOne({ where: { lastfmUsername: username } });
@@ -54,12 +99,20 @@ class MusicService {
       mbid: albumData.mbid && albumData.mbid.trim() !== '' ? albumData.mbid : null,
     };
 
-    const [album] = await this.Album.findOrCreate({
+    const [album, created] = await this.Album.findOrCreate({
       where: normalizedAlbumData.mbid
         ? { mbid: normalizedAlbumData.mbid }
         : { title: normalizedAlbumData.title, artistId },
       defaults: { ...normalizedAlbumData, artistId },
     });
+
+    // Update image if it's missing or if new image is provided
+    if (!created && normalizedAlbumData.image && (!album.image || album.image.trim() === '')) {
+      await album.update({ image: normalizedAlbumData.image });
+    } else if (!created && normalizedAlbumData.image && album.image !== normalizedAlbumData.image) {
+      // Update image if new one is provided (optional - can be removed if you don't want to overwrite existing images)
+      await album.update({ image: normalizedAlbumData.image });
+    }
 
     return album;
   }
@@ -72,12 +125,20 @@ class MusicService {
       mbid: trackData.mbid && trackData.mbid.trim() !== '' ? trackData.mbid : null,
     };
 
-    const [track] = await this.Track.findOrCreate({
+    const [track, created] = await this.Track.findOrCreate({
       where: normalizedTrackData.mbid
         ? { mbid: normalizedTrackData.mbid }
         : { name: normalizedTrackData.name, artistId },
       defaults: { ...normalizedTrackData, artistId, albumId },
     });
+
+    // Update image if it's missing or if new image is provided
+    if (!created && normalizedTrackData.image && (!track.image || track.image.trim() === '')) {
+      await track.update({ image: normalizedTrackData.image });
+    } else if (!created && normalizedTrackData.image && track.image !== normalizedTrackData.image) {
+      // Update image if new one is provided (optional - can be removed if you don't want to overwrite existing images)
+      await track.update({ image: normalizedTrackData.image });
+    }
 
     return track;
   }
@@ -180,10 +241,7 @@ class MusicService {
               title: albumData.title || albumData['#text'],
               mbid: albumData.mbid,
               url: albumData.url,
-              image: Array.isArray(albumData.image)
-                ? albumData.image.find((img) => img.size === 'medium')?.['#text'] ||
-                  albumData.image[albumData.image.length - 1]?.['#text']
-                : albumData.image,
+              image: this.extractImageUrl(albumData.image),
             },
             artist.id
           );
@@ -195,10 +253,7 @@ class MusicService {
             name: trackData.name,
             mbid: trackData.mbid,
             url: trackData.url,
-            image: Array.isArray(trackData.image)
-              ? trackData.image.find((img) => img.size === 'medium')?.['#text'] ||
-                trackData.image[trackData.image.length - 1]?.['#text']
-              : trackData.image,
+            image: this.extractImageUrl(trackData.image),
             duration: trackData.duration,
           },
           artist.id,
@@ -243,10 +298,7 @@ class MusicService {
               title: albumData.title || albumData['#text'],
               mbid: albumData.mbid,
               url: albumData.url,
-              image: Array.isArray(albumData.image)
-                ? albumData.image.find((img) => img.size === 'medium')?.['#text'] ||
-                  albumData.image[albumData.image.length - 1]?.['#text']
-                : albumData.image,
+              image: this.extractImageUrl(albumData.image),
             },
             artist.id
           );
@@ -258,10 +310,7 @@ class MusicService {
             name: trackData.name,
             mbid: trackData.mbid,
             url: trackData.url,
-            image: Array.isArray(trackData.image)
-              ? trackData.image.find((img) => img.size === 'medium')?.['#text'] ||
-                trackData.image[trackData.image.length - 1]?.['#text']
-              : trackData.image,
+            image: this.extractImageUrl(trackData.image),
             duration: trackData.duration,
           },
           artist.id,

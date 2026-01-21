@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { Music } from "lucide-react";
 import { RecentTrack } from "./types";
 
 interface RecentTracksListProps {
@@ -58,6 +59,17 @@ export const RecentTracksList = ({
             transition={{ delay: index * 0.02 }}
             className="flex items-center gap-4 p-4 bg-white dark:bg-zinc-800 rounded-lg hover:shadow-md transition-shadow"
           >
+            {recentTrack.track.image ? (
+              <img 
+                src={recentTrack.track.image} 
+                alt={`${recentTrack.track.artist.name} - ${recentTrack.track.name}`}
+                className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
+                <Music className="w-8 h-8 text-white" />
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <h3 className="font-medium text-black dark:text-zinc-50 truncate">
                 {recentTrack.track.name}
