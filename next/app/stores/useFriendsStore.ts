@@ -12,6 +12,7 @@ interface LastfmFriend {
     unixtime: string;
   };
   compatibility: number; // Процент совместимости музыкальных вкусов
+  topArtist?: string; // Любимый артист друга
 }
 
 interface FriendsState {

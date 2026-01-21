@@ -13,22 +13,64 @@ interface Friend {
   url: string;
   playcount: string;
   compatibility: number;
+  topArtist?: string; // Любимый артист друга
 }
 
 export const Friends = () => {
   const [gameActive, setGameActive] = useState(false);
   const [gameArtist, setGameArtist] = useState("");
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
-  
+  const [friendsWithArtists, setFriendsWithArtists] = useState<Map<string, string>>(new Map());
+  const [loadingArtists, setLoadingArtists] = useState<Set<string>>(new Set());
 
   // Store теперь обращается к  Last.fm API через наш бэкенд
   const { friends, isLoading, error, fetchFriends } = userFriendsStore();
 
   // Получаем друзей из LastFm
-
   useEffect(() => {
     fetchFriends();
   }, [fetchFriends]);
+
+  // Функция для загрузки топ артиста друга
+  const fetchFriendTopArtist = async (friendName: string) => {
+    // Если уже загружаем или уже загрузили, пропускаем
+    if (loadingArtists.has(friendName) || friendsWithArtists.has(friendName)) {
+      return;
+    }
+
+    setLoadingArtists(prev => new Set(prev).add(friendName));
+
+    try {
+      const response = await fetch(`/api/lastfm/user/top-artist?username=${encodeURIComponent(friendName)}&period=overall`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.artist?.name) {
+          setFriendsWithArtists(prev => new Map(prev).set(friendName, data.artist.name));
+        }
+      }
+    } catch (error) {
+      console.error(`Error fetching top artist for ${friendName}:`, error);
+    } finally {
+      setLoadingArtists(prev => {
+        const next = new Set(prev);
+        next.delete(friendName);
+        return next;
+      });
+    }
+  };
+
+  // Загружаем топ артистов для всех друзей с задержкой между запросами
+  useEffect(() => {
+    if (friends.length > 0) {
+      friends.forEach((friend, index) => {
+        // Задержка между запросами, чтобы не перегружать API
+        setTimeout(() => {
+          fetchFriendTopArtist(friend.name);
+        }, index * 300); // 300ms между запросами
+      });
+    }
+  }, [friends]);
 
   // Функция для получения URL аватара из массива изображений Last.fm
   // Last.fm возвращает массив изображений разных размеров, выбираем подходящий
@@ -70,7 +112,7 @@ export const Friends = () => {
         className="mb-6"
       >
         <h2 className="text-3xl font-bold text-gradient-nebula mb-2">
-          Социальный Хаб
+          Друзья
         </h2>
         <p className="text-muted-foreground">
           Сравните вкусы с друзьями и играйте вместе
@@ -87,7 +129,7 @@ export const Friends = () => {
         >
           <div className="flex items-center gap-3 mb-6">
             <Users className="w-6 h-6 text-primary" />
-            <h3 className="text-xl font-semibold">Музыкальные друзья</h3>
+            <h3 className="text-xl font-semibold">Ваши друзья</h3>
           </div>
 
           {/* Показываем состояние загрузки */}
@@ -148,8 +190,16 @@ export const Friends = () => {
                       <div className="flex-1">
                         <p className="font-medium">{displayName}</p>
                         <p className="text-sm text-muted-foreground">
-                          Прослушано: {parseInt(friend.playcount).toLocaleString()} треков
+                         {friendsWithArtists.has(friend.name) ? (
+                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                           Топ Исполнитель - <Music className="w-3 h-3" />
+                            {friendsWithArtists.get(friend.name)}
+                          </p>
+                        ) : loadingArtists.has(friend.name) ? (
+                          <p className="text-xs text-muted-foreground mt-1">Загрузка...</p>
+                        ) : null}
                         </p>
+                        
                       </div>
                       
                       <div className="text-right">
