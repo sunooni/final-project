@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Users, Gamepad2, Music, Shuffle, Trophy, Heart, AlertCircle } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { userFriendsStore } from "@/app/stores/useFriendsStore";
+import { FriendRecentTrack } from "./FriendRecentTrack";
 
 
 interface Friend {
@@ -22,6 +23,8 @@ export const Friends = () => {
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [friendsWithArtists, setFriendsWithArtists] = useState<Map<string, string>>(new Map());
   const [loadingArtists, setLoadingArtists] = useState<Set<string>>(new Set());
+  const [showRecentTrack, setShowRecentTrack] = useState(false);
+  const [recentTrackFriend, setRecentTrackFriend] = useState<Friend | null>(null);
 
   // Store теперь обращается к  Last.fm API через наш бэкенд
   const { friends, isLoading, error, fetchFriends } = userFriendsStore();
@@ -104,6 +107,11 @@ export const Friends = () => {
     setGameActive(true);
   };
 
+  const handleFriendClick = (friend: Friend) => {
+    setRecentTrackFriend(friend);
+    setShowRecentTrack(true);
+  };
+
   return (
     <div className="h-full flex flex-col">
       <motion.div
@@ -162,7 +170,7 @@ export const Friends = () => {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.3 + index * 0.1 }}
-                      onClick={() => setSelectedFriend(friend)}
+                      onClick={() => handleFriendClick(friend)}
                       className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${
                         selectedFriend?.id === friend.id
                           ? "bg-primary/20 border border-primary/50"
@@ -385,6 +393,24 @@ export const Friends = () => {
           </motion.div>
         </div>
       </div>
+
+      {/* Recent Track Modal */}
+      {recentTrackFriend && (
+        <FriendRecentTrack
+          friend={{
+            name: recentTrackFriend.name,
+            realname: recentTrackFriend.realname || recentTrackFriend.name,
+            url: recentTrackFriend.url,
+            image: getAvatarUrl(recentTrackFriend.avatar),
+            playcount: parseInt(recentTrackFriend.playcount) || 0
+          }}
+          isOpen={showRecentTrack}
+          onClose={() => {
+            setShowRecentTrack(false);
+            setRecentTrackFriend(null);
+          }}
+        />
+      )}
     </div>
   );
 };
