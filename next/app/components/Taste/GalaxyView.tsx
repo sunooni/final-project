@@ -188,12 +188,24 @@ const CentralSun = () => {
     }
   });
 
+  const handleClick = () => {
+    if (username) {
+      window.open(`https://www.last.fm/user/${username}`, '_blank');
+    }
+  };
+
   return (
     <group>
       <Sphere ref={glowRef} args={[1.5, 32, 32]}>
         <meshBasicMaterial color="#a855f7" transparent opacity={0.2} />
       </Sphere>
-      <Sphere ref={meshRef} args={[0.8, 64, 64]}>
+      <Sphere 
+        ref={meshRef} 
+        args={[0.8, 64, 64]}
+        onClick={handleClick}
+        onPointerOver={() => document.body.style.cursor = 'pointer'}
+        onPointerOut={() => document.body.style.cursor = 'default'}
+      >
         <meshStandardMaterial
           color="#a855f7"
           emissive="#ec4899"
@@ -354,6 +366,8 @@ export const GalaxyView = () => {
         💡 Используйте мышь для вращения, колёсико для масштабирования
         <br />
         Кликните на планету чтобы послушать рекомендованный трек
+        <br />
+        Кликните на центральную планету чтобы перейти в профиль Last.fm
       </motion.div>
     </div>
   );
