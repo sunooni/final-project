@@ -169,7 +169,9 @@ const Stars = () => {
 const CentralSun = () => {
   const meshRef = useRef<THREE.Mesh>(null);
   const glowRef = useRef<THREE.Mesh>(null);
+  const textGroupRef = useRef<THREE.Group>(null);
   const { username } = useUserStore();
+  const { camera } = useThree();
 
   useFrame((state) => {
     if (meshRef.current) {
@@ -178,6 +180,11 @@ const CentralSun = () => {
     }
     if (glowRef.current) {
       glowRef.current.scale.setScalar(1 + Math.sin(state.clock.elapsedTime) * 0.15);
+    }
+    
+    // Синхронизируем текст с камерой
+    if (textGroupRef.current) {
+      textGroupRef.current.lookAt(camera.position);
     }
   });
 
@@ -195,15 +202,19 @@ const CentralSun = () => {
           metalness={1}
         />
       </Sphere>
-      <Text
-        position={[0, 0, 0]}
-        fontSize={0.2}
-        color="white"
-        anchorX="center"
-        anchorY="middle"
-      >
-        {username || 'Пользователь'}
-      </Text>
+      
+      {/* Text group that rotates with camera */}
+      <group ref={textGroupRef} position={[0, 2.2, 0]}>
+        <Text
+          position={[0, 0, 0]}
+          fontSize={0.25}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {username || 'Пользователь'}
+        </Text>
+      </group>
     </group>
   );
 };
