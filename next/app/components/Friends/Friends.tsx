@@ -29,7 +29,7 @@ export const Friends = () => {
   // Получаем друзей из LastFm
   useEffect(() => {
     fetchFriends();
-  }, [fetchFriends]);
+  }, []);
 
   // Функция для загрузки топ артиста друга
   const fetchFriendTopArtist = async (friendName: string) => {
