@@ -1,4 +1,5 @@
 import { lastfmConfig } from '@/config/lastfm';
+import { GET as getGalaxyData } from '@/app/api/database/galaxy/route';
 
 export type Period = '7day' | '1month' | '3month' | '6month' | '12month';
 
@@ -28,54 +29,42 @@ async function fetchTopArtists(username: string, period: Period) {
   return data.topartists?.artist ?? [];
 }
 
-async function fetchArtistTags(artistName: string, username: string) {
-  const res = await fetch(
-    `https://ws.audioscrobbler.com/2.0/?method=artist.getTags&artist=${encodeURIComponent(
-      artistName
-    )}&user=${encodeURIComponent(username)}&api_key=${lastfmConfig.apiKey}&format=json`
-  );
-  const data = await res.json();
-  return data.tags?.tag ?? [];
+async function fetchTopGenres(): Promise<Array<{ name: string; artists: Array<{ name: string }> }>> {
+  try {
+    // Вызываем galaxy route напрямую
+    const request = new Request('http://localhost/api/database/galaxy');
+    const response = await getGalaxyData(request);
+    
+    if (!response.ok) {
+      return [];
+    }
+    
+    const data = await response.json();
+    return data.genres || [];
+  } catch (error) {
+    console.error('Error fetching top genres:', error);
+    return [];
+  }
 }
 
-// простая мапа тегов -> жанр
-const tagToGenre: Record<string, string> = {
-  rock: 'Rock',
-  metal: 'Rock',
-  pop: 'Pop',
-  electronic: 'Electronic',
-  edm: 'Electronic',
-  hiphop: 'Hip-Hop',
-  'hip-hop': 'Hip-Hop',
-  rap: 'Hip-Hop',
-  jazz: 'Jazz',
-  rnb: 'R&B',
-  'r&b': 'R&B',
-  indie: 'Indie',
-  alternative: 'Alternative',
-  folk: 'Folk',
-  country: 'Country',
-  classical: 'Classical',
-  blues: 'Blues',
-  reggae: 'Reggae',
-  punk: 'Punk',
-  funk: 'Funk',
-};
-
-function deriveTopGenreFromTags(tags: { name: string }[]): string {
-  const counts: Record<string, number> = {};
+function findArtistGenre(artistName: string, topGenres: Array<{ name: string; artists: Array<{ name: string }> }>): string | null {
+  if (!topGenres || topGenres.length === 0) return null;
   
-  for (const t of tags) {
-    const key = t.name.toLowerCase();
-    const genre = tagToGenre[key];
-    if (!genre) continue;
-    counts[genre] = (counts[genre] ?? 0) + 1;
+  // Ищем артиста в жанрах (нормализуем имена для сравнения)
+  const normalizedArtistName = artistName.toLowerCase().trim();
+  
+  for (const genre of topGenres) {
+    if (genre.artists && genre.artists.length > 0) {
+      const found = genre.artists.find(artist => 
+        artist.name.toLowerCase().trim() === normalizedArtistName
+      );
+      if (found) {
+        return genre.name;
+      }
+    }
   }
   
-  const entries = Object.entries(counts);
-  if (!entries.length) return 'Unknown';
-  
-  return entries.sort((a, b) => b[1] - a[1])[0][0];
+  return null;
 }
 
 function colorForPeriod(p: Period): string {
@@ -96,6 +85,8 @@ function colorForPeriod(p: Period): string {
 export async function buildTimeline(username: string): Promise<TimelineItem[]> {
   const periods: Period[] = ['7day', '1month', '3month', '6month', '12month'];
   const result: TimelineItem[] = [];
+
+  const topGenres = await fetchTopGenres();
   
   for (const period of periods) {
     try {
@@ -103,8 +94,13 @@ export async function buildTimeline(username: string): Promise<TimelineItem[]> {
       if (!artists.length) continue;
       
       const topArtist = artists[0];
-      const tags = await fetchArtistTags(topArtist.name, username);
-      const topGenre = deriveTopGenreFromTags(tags);
+      let topGenre = findArtistGenre(topArtist.name, topGenres);
+      if (!topGenre && topGenres.length > 0) {
+        topGenre = topGenres[0].name;
+      }
+      if (!topGenre) {
+        topGenre = 'Unknown';
+      }
       
       result.push({
         period,
