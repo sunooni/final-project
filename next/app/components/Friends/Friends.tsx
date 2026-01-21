@@ -189,7 +189,7 @@ export const Friends = () => {
                       
                       <div className="flex-1">
                         <p className="font-medium">{displayName}</p>
-                        <p className="text-sm text-muted-foreground">
+                        <div className="text-sm text-muted-foreground">
                          {friendsWithArtists.has(friend.name) ? (
                           <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                            Топ Исполнитель - <Music className="w-3 h-3" />
@@ -198,7 +198,7 @@ export const Friends = () => {
                         ) : loadingArtists.has(friend.name) ? (
                           <p className="text-xs text-muted-foreground mt-1">Загрузка...</p>
                         ) : null}
-                        </p>
+                        </div>
                         
                       </div>
                       
