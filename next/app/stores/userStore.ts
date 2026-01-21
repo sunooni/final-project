@@ -84,18 +84,18 @@ interface UserStore {
   setUsername: (username: string | null) => void;
 }
 
-// Pastel colors for planets
+// Нежные пастельные цвета для планет
 const pastelColors = [
-  '#FFB3BA', // pastel pink
-  '#FFDFBA', // pastel peach
-  '#FFFFBA', // pastel yellow
-  '#BAFFC9', // pastel mint
-  '#BAE1FF', // pastel blue
-  '#E0BBE4', // pastel lavender
-  '#FFDFD3', // pastel coral
-  '#D4F1F4', // pastel cyan
-  '#FFE5B4', // pastel apricot
-  '#E8D5C4', // pastel beige
+  '#F8BBD9', // очень нежный розовый
+  '#E2C2FF', // нежный лавандовый
+  '#B8E6B8', // нежный мятный
+  '#FFE5CC', // нежный персиковый
+  '#D4F1F9', // нежный голубой
+  '#F5E6FF', // нежный сиреневый
+  '#FFE1E6', // нежный коралловый
+  '#E8F5E8', // нежный зеленый
+  '#FFF2E6', // нежный кремовый
+  '#E6F3FF', // нежный небесный
 ];
 
 // Generate mock listening history for the past year
