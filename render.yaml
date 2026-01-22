@@ -1,6 +1,6 @@
 services:
   # PostgreSQL Database
-  - type: pspg
+  - type: pg
     name: music-app-db
     plan: free
     databaseName: music_app
