@@ -49,6 +49,16 @@ services:
         sync: false
       - key: OPENAI_API_KEY
         sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_REFERER
+        fromService:
+          type: web
+          name: music-app-frontend
+          property: host
+          transform: "https://{{host}}/"
+      - key: OPENROUTER_TITLE
+        value: "Music App"
 
   # Next.js Frontend
   - type: web

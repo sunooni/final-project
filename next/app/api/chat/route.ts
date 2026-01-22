@@ -47,8 +47,22 @@ export async function POST(request: NextRequest) {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || errorData.error || 'Failed to process message');
+      // Пытаемся получить JSON ошибку, если возможно
+      let errorMessage = 'Failed to process message';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorData.error || errorMessage;
+      } catch {
+        // Если ответ не JSON, используем статус
+        if (response.status === 502) {
+          errorMessage = 'API сервер недоступен. Попробуйте позже.';
+        } else if (response.status === 503) {
+          errorMessage = 'Сервис временно недоступен. Попробуйте позже.';
+        } else {
+          errorMessage = `Ошибка сервера: ${response.status} ${response.statusText}`;
+        }
+      }
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();

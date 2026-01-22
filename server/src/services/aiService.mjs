@@ -18,9 +18,16 @@ if (!apiKey) {
   throw new Error('OPENROUTER_API_KEY is not set in environment variables');
 }
 
+// OpenRouter требует HTTP-Referer заголовок для бесплатных моделей
+const referer = process.env.OPENROUTER_REFERER || 'https://music-app-frontend-yi6k.onrender.com/';
+
 const client = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
   apiKey,
+  defaultHeaders: {
+    'HTTP-Referer': referer,
+    'X-Title': process.env.OPENROUTER_TITLE || 'Music App',
+  },
 });
 
 const SYSTEM_PROMPT = 'Отвечай максимально кратко и лаконично. Экономь токены, избегай лишних слов и объяснений.';
@@ -471,10 +478,32 @@ export async function chatWithAI(message, userId = null, conversationHistory = [
     { role: 'user', content: enhancedMessage }
   ];
 
-  const apiResponse = await client.chat.completions.create({
-    model: 'xiaomi/mimo-v2-flash:free',
-    messages,
-  });
+  let apiResponse;
+  try {
+    apiResponse = await client.chat.completions.create({
+      model: 'xiaomi/mimo-v2-flash:free',
+      messages,
+    });
+  } catch (error) {
+    console.error('OpenRouter API error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      status: error.status,
+      code: error.code,
+      type: error.type,
+    });
+    
+    // Более информативное сообщение об ошибке
+    if (error.status === 401 || error.status === 403) {
+      throw new Error('Ошибка авторизации OpenRouter API. Проверьте API ключ.');
+    } else if (error.status === 429) {
+      throw new Error('Превышен лимит запросов к OpenRouter API. Попробуйте позже.');
+    } else if (error.message?.includes('HTTP-Referer')) {
+      throw new Error('Ошибка конфигурации OpenRouter: отсутствует HTTP-Referer заголовок.');
+    } else {
+      throw new Error(`Ошибка OpenRouter API: ${error.message || 'Неизвестная ошибка'}`);
+    }
+  }
 
   const aiResponse = apiResponse.choices?.[0]?.message?.content || 'Не удалось получить ответ от ИИ.';
   
