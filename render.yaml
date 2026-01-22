@@ -1,0 +1,83 @@
+services:
+  # PostgreSQL Database
+  - type: pspg
+    name: music-app-db
+    plan: free
+    databaseName: music_app
+    user: music_app_user
+
+  # Express Backend API
+  - type: web
+    name: music-app-api
+    env: node
+    plan: free
+    buildCommand: cd server && npm install && npm run db:migrate
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        fromService:
+          type: web
+          name: music-app-api
+          property: port
+      - key: DB_HOST
+        fromDatabase:
+          name: music-app-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: music-app-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: music-app-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: music-app-db
+          property: user
+      - key: DB_PASS
+        fromDatabase:
+          name: music-app-db
+          property: password
+      - key: DB_SSL
+        value: "true"
+      - key: LASTFM_API_KEY
+        sync: false
+      - key: LASTFM_SHARED_SECRET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+
+  # Next.js Frontend
+  - type: web
+    name: music-app-frontend
+    env: node
+    plan: free
+    buildCommand: cd next && npm install && npm run build
+    startCommand: cd next && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        fromService:
+          type: web
+          name: music-app-frontend
+          property: port
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: music-app-api
+          property: host
+          transform: "https://{{host}}/api/music"
+      - key: LASTFM_API_KEY
+        sync: false
+      - key: LASTFM_SHARED_SECRET
+        sync: false
+      - key: LASTFM_REDIRECT_URI
+        fromService:
+          type: web
+          name: music-app-frontend
+          property: host
+          transform: "https://{{host}}/api/auth/lastfm/callback"
