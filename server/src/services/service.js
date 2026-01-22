@@ -274,6 +274,16 @@ class MusicService {
       }
     }
 
+    // Update last sync timestamp
+    try {
+      await this.User.update(
+        { lovedTracksLastSyncedAt: new Date() },
+        { where: { id: userId } }
+      );
+    } catch (error) {
+      console.error('Error updating lovedTracksLastSyncedAt:', error.message);
+    }
+
     return results;
   }
 
@@ -328,6 +338,16 @@ class MusicService {
         console.error(`Error syncing recent track "${trackData.name}" by "${trackData.artist['#text'] || trackData.artist.name}":`, error.message);
         // Continue with other tracks even if one fails
       }
+    }
+
+    // Update last sync timestamp
+    try {
+      await this.User.update(
+        { recentTracksLastSyncedAt: new Date() },
+        { where: { id: userId } }
+      );
+    } catch (error) {
+      console.error('Error updating recentTracksLastSyncedAt:', error.message);
     }
 
     return results;

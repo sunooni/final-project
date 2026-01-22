@@ -378,22 +378,36 @@ export async function GET(request: NextRequest) {
         maxAge: 86400 * 365,
       });
 
-      // Start background synchronization of loved tracks (don't await to avoid blocking redirect)
-      syncLovedTracksInBackground(userId, username, sessionKey, apiKey, sharedSecret).catch(
-        (error: unknown) => {
-          console.error("Background sync error:", error);
-        }
-      );
+      // Start background synchronization in a non-blocking way
+      // Use setTimeout to ensure it doesn't block the redirect response
+      setTimeout(() => {
+        syncLovedTracksInBackground(userId, username, sessionKey, apiKey, sharedSecret).catch(
+          (error: unknown) => {
+            console.error("Background sync error:", error);
+          }
+        );
 
-      // Start background synchronization of recent tracks (don't await to avoid blocking redirect)
-      syncRecentTracksInBackground(userId, username, sessionKey, apiKey, sharedSecret).catch(
-        (error: unknown) => {
-          console.error("Background recent tracks sync error:", error);
-        }
-      );
+        syncRecentTracksInBackground(userId, username, sessionKey, apiKey, sharedSecret).catch(
+          (error: unknown) => {
+            console.error("Background recent tracks sync error:", error);
+          }
+        );
+      }, 0);
+
+      // Запускаем предзагрузку данных для всех страниц в фоне
+      setTimeout(() => {
+        fetch(new URL("/api/preload", request.url), {
+          method: 'POST',
+        }).catch((error) => {
+          console.error("Preload error:", error);
+        });
+      }, 100);
     }
 
-    return NextResponse.redirect(new URL("/tracks", request.url));
+    // Добавляем параметр для указания, что нужно запустить предзагрузку на клиенте
+    const redirectUrl = new URL("/tracks", request.url);
+    redirectUrl.searchParams.set("preload", "true");
+    return NextResponse.redirect(redirectUrl);
   } catch (error) {
     console.error("Last.fm OAuth callback error:", error);
     return NextResponse.redirect(
