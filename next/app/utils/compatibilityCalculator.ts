@@ -121,7 +121,7 @@ export async function getUserGenres(
     // Группируем треки по артистам (как в galaxy endpoint)
     const artistTracks: Record<string, { tracks: Track[]; url: string }> = {};
     for (const track of allTracks) {
-      const artistName = track.artist?.['#text'] || track.artist?.name || track.artist;
+      const artistName = track.artist?.['#text'] || (typeof track.artist === 'string' ? track.artist : undefined);
       
       if (!artistName || typeof artistName !== 'string' || artistName.trim() === '') {
         continue;

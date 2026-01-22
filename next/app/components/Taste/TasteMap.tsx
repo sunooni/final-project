@@ -11,7 +11,7 @@ interface Node {
   type: "genre" | "artist";
   value: number;
   color: string;
-  ulr?: string;
+  url?: string;
   x?: number;
   y?: number;
   fx?: number | null;

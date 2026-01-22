@@ -147,7 +147,7 @@ export const FriendsList = ({ onFriendSelect, selectedFriendId }: FriendsListPro
       <Button 
         variant="glass" 
         className="w-full mt-4"
-        onClick={fetchFriends}
+        onClick={() => fetchFriends()}
         disabled={isLoading}
       >
         <Users className="w-4 h-4 mr-2" />
