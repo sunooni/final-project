@@ -32,8 +32,10 @@ export const EmotionalCalendar = () => {
     syncMoodHistory 
   } = useUserStore();
 
-  // Автозагрузка при первом рендере
+  // Автозагрузка при первом рендере (только на клиенте)
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     if (listeningHistory.length === 0 && !isLoadingMoodHistory && !moodHistoryError) {
       loadMoodHistory();
     }
