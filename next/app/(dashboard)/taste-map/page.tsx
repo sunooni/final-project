@@ -1,11 +1,9 @@
+'use client';
+
 import { Suspense } from 'react';
-import dynamic from 'next/dynamic';
+import dynamicImport from 'next/dynamic';
 
-// Отключаем статическую генерацию для этой страницы
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
-const TasteMap = dynamic(
+const TasteMap = dynamicImport(
   () => import('@/app/components/Taste/TasteMap').then(mod => ({ default: mod.TasteMap })),
   { ssr: false }
 );

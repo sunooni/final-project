@@ -1,12 +1,10 @@
-import { Suspense } from 'react';
-import dynamic from 'next/dynamic';
+'use client';
 
-// Отключаем статическую генерацию для этой страницы
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+import { Suspense } from 'react';
+import dynamicImport from 'next/dynamic';
 
 // Динамический импорт с отключением SSR
-const EmotionalCalendar = dynamic(
+const EmotionalCalendar = dynamicImport(
   () => import('@/app/components/Emotion/EmotionalCalendar').then(mod => ({ default: mod.EmotionalCalendar })),
   { 
     ssr: false,

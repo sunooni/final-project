@@ -1,11 +1,9 @@
+'use client';
+
 import { Suspense } from 'react';
-import dynamic from 'next/dynamic';
+import dynamicImport from 'next/dynamic';
 
-// Отключаем статическую генерацию для этой страницы
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
-const Friends = dynamic(
+const Friends = dynamicImport(
   () => import('@/app/components/Friends/Friends').then(mod => ({ default: mod.Friends })),
   { ssr: false }
 );

@@ -1,11 +1,9 @@
+'use client';
+
 import { Suspense } from 'react';
-import dynamic from 'next/dynamic';
+import dynamicImport from 'next/dynamic';
 
-// Отключаем статическую генерацию для этой страницы
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
-const GalaxyView = dynamic(
+const GalaxyView = dynamicImport(
   () => import('@/app/components/Taste/GalaxyView').then(mod => ({ default: mod.GalaxyView })),
   { ssr: false }
 );

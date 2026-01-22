@@ -1,11 +1,9 @@
+'use client';
+
 import { Suspense } from 'react';
-import dynamic from 'next/dynamic';
+import dynamicImport from 'next/dynamic';
 
-// Отключаем статическую генерацию для этой страницы
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
-const EvolutionTimeline = dynamic(
+const EvolutionTimeline = dynamicImport(
   () => import('@/app/components/Evolution/EvolutionTimeline').then(mod => ({ default: mod.EvolutionTimeline })),
   { ssr: false }
 );
