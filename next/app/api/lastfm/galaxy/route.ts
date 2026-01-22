@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { callLastfmApi, getLastfmUsername } from '@/app/lib/lastfm';
-import { lastfmConfig } from '@/config/lastfm';
+import { callLastfmApi, callLastfmPublicApi, getLastfmUsername } from '@/app/lib/lastfm';
 
 interface Track {
   name: string;
@@ -132,20 +131,16 @@ export async function GET(request: Request) {
             return;
           }
           
-          // Use public API method - no authentication needed
-          const url = new URL('https://ws.audioscrobbler.com/2.0/');
-          url.searchParams.set('method', 'artist.getInfo');
-          url.searchParams.set('artist', artistName);
-          url.searchParams.set('api_key', lastfmConfig.apiKey);
-          url.searchParams.set('format', 'json');
-
-          const response = await fetch(url.toString());
-          if (!response.ok) {
-            console.error(`Failed to fetch artist ${artistName}: ${response.status}`);
+          // Use public API method with caching - no authentication needed
+          const artistData = await callLastfmPublicApi('artist.getInfo', {
+            artist: artistName,
+          });
+          
+          if (!artistData || !artistData.artist) {
+            console.warn(`No artist info for ${artistName}`);
             return;
           }
-
-          const artistData = await response.json();
+          
           const artistInfo: ArtistInfo = artistData.artist;
           if (!artistInfo || !artistInfo.name) {
             console.warn(`No artist info for ${artistName}`);

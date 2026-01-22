@@ -6,6 +6,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const friendUsername = searchParams.get('username');
     const limit = searchParams.get('limit') || '1';
+    const skipCache = searchParams.get('_t') !== null; // Если есть параметр _t, обходим кэш
 
     if (!friendUsername) {
       return NextResponse.json(
@@ -17,6 +18,8 @@ export async function GET(request: Request) {
     const data = await callLastfmApi('user.getRecentTracks', {
       user: friendUsername,
       limit,
+    }, {
+      useCache: !skipCache, // Обходим кэш при автоматическом обновлении
     });
 
     if (!data.recenttracks || !data.recenttracks.track) {

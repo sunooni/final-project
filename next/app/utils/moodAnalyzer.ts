@@ -1,4 +1,5 @@
 import { lastfmConfig } from '@/config/lastfm';
+import { callLastfmPublicApi } from '@/app/lib/lastfm';
 
 export type Mood = 'joy' | 'energy' | 'calm' | 'sad' | 'love';
 
@@ -38,16 +39,11 @@ export const analyzeTrackMood = async (artist: string, track: string): Promise<R
   const moodCounts: Record<Mood, number> = { joy: 0, energy: 0, calm: 0, sad: 0, love: 0 };
 
   try {
-    const params = new URLSearchParams({
-      method: 'track.getInfo',
+    // Use cached public API instead of direct fetch
+    const data = await callLastfmPublicApi('track.getInfo', {
       artist: artist,
       track: track,
-      api_key: lastfmConfig.apiKey,
-      format: 'json'
     });
-
-    const response = await fetch(`https://ws.audioscrobbler.com/2.0/?${params}`);
-    const data = await response.json();
 
     const tags = data.track?.toptags?.tag?.slice(0, 10) || [];
     

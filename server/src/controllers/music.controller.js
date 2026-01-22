@@ -151,13 +151,27 @@ class MusicController {
     try {
       const { userId } = req.params;
       const { tracks } = req.body;
+      
+      console.log(`[syncRecentTracks] Received request for user ${userId} with ${tracks?.length || 0} tracks`);
+      
       if (!Array.isArray(tracks)) {
+        console.error('[syncRecentTracks] Invalid request: tracks is not an array');
         return res.status(400).json({ message: 'Tracks must be an array' });
       }
+      
+      if (tracks.length === 0) {
+        console.warn('[syncRecentTracks] Empty tracks array');
+        return res.status(201).json({ message: 'Recent tracks synced', count: 0 });
+      }
+      
+      console.log(`[syncRecentTracks] Starting sync for ${tracks.length} tracks...`);
       const result = await this.service.syncRecentTracks(parseInt(userId), tracks);
+      console.log(`[syncRecentTracks] Successfully synced ${result.length} tracks`);
+      
       res.status(201).json({ message: 'Recent tracks synced', count: result.length });
     } catch (error) {
-      console.log(error);
+      console.error('[syncRecentTracks] Error:', error);
+      console.error('[syncRecentTracks] Error stack:', error.stack);
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   };

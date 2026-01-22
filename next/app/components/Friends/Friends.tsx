@@ -27,9 +27,9 @@ export const Friends = () => {
   const [trackError, setTrackError] = useState<string | null>(null);
 
   // Store теперь обращается к  Last.fm API через наш бэкенд
-  const { friends, isLoading, error, fetchFriends } = userFriendsStore();
+  const { friends, isLoading, isRefreshing, error, fetchFriends } = userFriendsStore();
 
-  // Получаем друзей из LastFm
+  // Получаем друзей из LastFm (stale-while-revalidate: показываем кэш сразу, обновляем в фоне)
   useEffect(() => {
     fetchFriends();
   }, []);
@@ -63,15 +63,32 @@ export const Friends = () => {
     }
   };
 
-  // Загружаем топ артистов для всех друзей с задержкой между запросами
+  // Загружаем топ артистов для всех друзей параллельно (батчами по 5 для избежания rate limiting)
   useEffect(() => {
     if (friends.length > 0) {
-      friends.forEach((friend, index) => {
-        // Задержка между запросами, чтобы не перегружать API
-        setTimeout(() => {
-          fetchFriendTopArtist(friend.name);
-        }, index * 300); // 300ms между запросами
-      });
+      const loadArtistsInBatches = async () => {
+        const batchSize = 5;
+        const batches = [];
+        
+        for (let i = 0; i < friends.length; i += batchSize) {
+          const batch = friends.slice(i, i + batchSize);
+          batches.push(batch);
+        }
+        
+        // Загружаем батчи последовательно, но внутри батча - параллельно
+        for (const batch of batches) {
+          await Promise.all(
+            batch.map(friend => fetchFriendTopArtist(friend.name))
+          );
+          
+          // Небольшая задержка между батчами для избежания rate limiting
+          if (batches.indexOf(batch) < batches.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        }
+      };
+      
+      loadArtistsInBatches();
     }
   }, [friends]);
 
@@ -136,6 +153,37 @@ export const Friends = () => {
     }
   };
 
+  // Автоматическое обновление трека каждую минуту, если выбран друг
+  useEffect(() => {
+    if (!selectedFriend) return;
+
+    const updateTrack = async () => {
+      // Не показываем индикатор загрузки при автоматическом обновлении
+      try {
+        const response = await fetch(`/api/lastfm/user/friend-recent-tracks?username=${selectedFriend.name}&limit=1&_t=${Date.now()}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          const tracks = data.tracks || [];
+          
+          if (tracks.length > 0) {
+            setRecentTrack(tracks[0]);
+            setTrackError(null);
+          }
+        }
+      } catch (error) {
+        // Игнорируем ошибки при автоматическом обновлении, чтобы не мешать пользователю
+        console.error('Error auto-updating track:', error);
+      }
+    };
+
+    // Обновляем сразу при выборе друга, затем каждую минуту
+    updateTrack(); // Первое обновление сразу
+    const interval = setInterval(updateTrack, 60 * 1000); // Затем каждую минуту
+
+    return () => clearInterval(interval);
+  }, [selectedFriend]);
+
   const formatDate = (dateObj: { uts: string; text: string }) => {
     const date = new Date(parseInt(dateObj.uts) * 1000);
     const now = new Date();
@@ -184,11 +232,30 @@ export const Friends = () => {
             <h3 className="text-xl font-semibold">Ваши друзья</h3>
           </div>
 
-          {/* Показываем состояние загрузки */}
-          {isLoading && (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              <span className="ml-2 text-muted-foreground">Загрузка друзей...</span>
+          {/* Показываем skeleton loaders при первой загрузке */}
+          {isLoading && friends.length === 0 && (
+            <div className="space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 animate-pulse"
+                >
+                  <div className="w-12 h-12 rounded-full bg-muted/50"></div>
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-muted/50 rounded w-3/4"></div>
+                    <div className="h-3 bg-muted/30 rounded w-1/2"></div>
+                  </div>
+                  <div className="w-16 h-8 bg-muted/50 rounded"></div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Показываем индикатор обновления в фоне */}
+          {isRefreshing && friends.length > 0 && (
+            <div className="flex items-center justify-center py-2 mb-4">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+              <span className="ml-2 text-xs text-muted-foreground">Обновление...</span>
             </div>
           )}
 

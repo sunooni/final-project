@@ -211,10 +211,47 @@ function GalaxyScene({ data }: { data: GalaxyData }) {
 
 // Main Galaxy component
 export default function Galaxy() {
-  const [data, setData] = useState<GalaxyData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<GalaxyData | null>(() => {
+    // Восстанавливаем кэш из localStorage при инициализации
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('galaxy-cache');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          const now = Date.now();
+          // Проверяем, не устарел ли кэш (30 минут)
+          if (now - parsed.timestamp < 30 * 60 * 1000) {
+            return parsed.data;
+          }
+        } catch (e) {
+          // Игнорируем ошибки парсинга
+        }
+      }
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState(data === null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [lastFetchedAt, setLastFetchedAt] = useState<number | null>(() => {
+    // Восстанавливаем timestamp из localStorage
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('galaxy-cache');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          return parsed.timestamp;
+        } catch (e) {
+          // Игнорируем ошибки
+        }
+      }
+    }
+    return null;
+  });
+
+  // Время жизни кэша (30 минут для galaxy)
+  const CACHE_TTL = 30 * 60 * 1000;
 
   useEffect(() => {
     checkAuthAndFetchData();
@@ -244,9 +281,48 @@ export default function Galaxy() {
     }
   };
 
-  const fetchGalaxyData = async () => {
+  const fetchGalaxyData = async (forceRefresh = false) => {
+    const now = Date.now();
+    
+    // Stale-while-revalidate: если есть кэшированные данные и они свежие
+    if (!forceRefresh && data && lastFetchedAt) {
+      const timeSinceFetch = now - lastFetchedAt;
+      
+      // Если данные свежие, показываем их и обновляем в фоне
+      if (timeSinceFetch < CACHE_TTL) {
+        setIsRefreshing(true);
+        
+        try {
+          const response = await fetch('/api/lastfm/galaxy');
+          
+          if (response.ok) {
+            const galaxyData = await response.json();
+            setData(galaxyData);
+            setLastFetchedAt(now);
+            setError(null);
+            
+            // Сохраняем в localStorage
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('galaxy-cache', JSON.stringify({
+                data: galaxyData,
+                timestamp: now
+              }));
+            }
+          }
+        } catch (err) {
+          // Игнорируем ошибки при фоновом обновлении
+          console.error('Error refreshing galaxy data:', err);
+        } finally {
+          setIsRefreshing(false);
+        }
+        
+        return;
+      }
+    }
+    
+    // Первая загрузка или данные устарели
     try {
-      setLoading(true);
+      setLoading(data === null); // Показываем loading только если данных нет
       setError(null);
       const response = await fetch('/api/lastfm/galaxy');
       
@@ -262,6 +338,15 @@ export default function Galaxy() {
 
       const galaxyData = await response.json();
       setData(galaxyData);
+      setLastFetchedAt(now);
+      
+      // Сохраняем в localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('galaxy-cache', JSON.stringify({
+          data: galaxyData,
+          timestamp: now
+        }));
+      }
     } catch (err) {
       console.error('Error fetching galaxy data:', err);
       setError('Ошибка при загрузке данных галактики');
@@ -333,6 +418,12 @@ export default function Galaxy() {
         <p className="text-xs text-gray-400 mt-2">
           Кликните на спутник, чтобы перейти на Last.fm
         </p>
+        {isRefreshing && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
+            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+            <span>Обновление данных...</span>
+          </div>
+        )}
       </div>
     </div>
   );
