@@ -1,11 +1,11 @@
-services:
+databases:
   # PostgreSQL Database
-  - type: pg
-    name: music-app-db
-    plan: free
+  - name: music-app-db
     databaseName: music_app
     user: music_app_user
+    plan: free
 
+services:
   # Express Backend API
   - type: web
     name: music-app-api
