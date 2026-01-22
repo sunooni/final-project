@@ -1,0 +1,160 @@
+# Инструкция по деплою на Render
+
+## Подготовка к деплою
+
+### 1. Настройка переменных окружения
+
+Перед деплоем убедитесь, что у вас есть следующие API ключи:
+- `LASTFM_API_KEY` - API ключ от Last.fm
+- `LASTFM_SHARED_SECRET` - Shared Secret от Last.fm
+- `OPENAI_API_KEY` - API ключ от OpenAI (для AI ассистента)
+
+### 2. Деплой через Render Dashboard
+
+#### Вариант A: Автоматический деплой через render.yaml
+
+1. Зайдите на https://dashboard.render.com
+2. Нажмите "New +" → "Blueprint"
+3. Подключите ваш GitHub репозиторий
+4. Render автоматически обнаружит `render.yaml` и создаст все сервисы
+
+#### Вариант B: Ручной деплой
+
+##### Шаг 1: Создание PostgreSQL базы данных
+
+1. Нажмите "New +" → "PostgreSQL"
+2. Название: `music-app-db`
+3. План: Free
+4. Database: `music_app`
+5. User: `music_app_user`
+6. После создания скопируйте внутренний URL базы данных
+
+##### Шаг 2: Деплой Express Backend
+
+1. Нажмите "New +" → "Web Service"
+2. Подключите ваш GitHub репозиторий
+3. Настройки:
+   - **Name**: `music-app-api`
+   - **Environment**: `Node`
+   - **Build Command**: `cd server && npm install`
+   - **Start Command**: `cd server && npm start`
+   - **Plan**: Free
+
+4. Переменные окружения:
+   ```
+   NODE_ENV=production
+   PORT=10000 (Render автоматически установит)
+   DB_HOST=<из PostgreSQL сервиса>
+   DB_PORT=<из PostgreSQL сервиса>
+   DB_NAME=<из PostgreSQL сервиса>
+   DB_USER=<из PostgreSQL сервиса>
+   DB_PASS=<из PostgreSQL сервиса>
+   DB_SSL=true
+   LASTFM_API_KEY=<ваш ключ>
+   LASTFM_SHARED_SECRET=<ваш секрет>
+   OPENAI_API_KEY=<ваш ключ>
+   ```
+
+5. После деплоя скопируйте URL сервиса (например: `https://music-app-api.onrender.com`)
+
+##### Шаг 3: Деплой Next.js Frontend
+
+1. Нажмите "New +" → "Web Service"
+2. Подключите тот же GitHub репозиторий
+3. Настройки:
+   - **Name**: `music-app-frontend`
+   - **Environment**: `Node`
+   - **Build Command**: `cd next && npm install && npm run build`
+   - **Start Command**: `cd next && npm start`
+   - **Plan**: Free
+
+4. Переменные окружения:
+   ```
+   NODE_ENV=production
+   PORT=10000 (Render автоматически установит)
+   NEXT_PUBLIC_API_URL=https://music-app-api.onrender.com/api/music
+   LASTFM_API_KEY=<ваш ключ>
+   LASTFM_SHARED_SECRET=<ваш секрет>
+   LASTFM_REDIRECT_URI=https://music-app-frontend.onrender.com/api/auth/lastfm/callback
+   ```
+
+### 3. Запуск миграций базы данных
+
+После деплоя Express сервиса нужно запустить миграции:
+
+1. Зайдите в ваш Express сервис на Render
+2. Откройте вкладку "Shell"
+3. Выполните команду:
+   ```bash
+   cd server && npm run db:migrate
+   ```
+
+Или добавьте это в build command:
+```bash
+cd server && npm install && npm run db:migrate
+```
+
+### 4. Проверка деплоя
+
+1. Откройте URL вашего Next.js сервиса
+2. Проверьте, что фронтенд загружается
+3. Попробуйте авторизоваться через Last.fm
+4. Проверьте, что API запросы работают
+
+## Важные замечания
+
+### Free план Render
+
+- Сервисы на free плане "засыпают" после 15 минут неактивности
+- Первый запрос после простоя может занять до 30 секунд
+- Для production рекомендуется использовать платный план
+
+### Переменные окружения
+
+- `NEXT_PUBLIC_API_URL` должен указывать на публичный URL Express сервиса
+- `LASTFM_REDIRECT_URI` должен точно совпадать с настройками в Last.fm приложении
+- Все переменные окружения чувствительны к регистру
+
+### База данных
+
+- На free плане база данных может быть удалена через 90 дней неактивности
+- Регулярно делайте бэкапы
+- Для production используйте платный план с автоматическими бэкапами
+
+### Troubleshooting
+
+#### Проблема: Frontend не может подключиться к API
+
+**Решение**: Проверьте, что `NEXT_PUBLIC_API_URL` указывает на правильный URL Express сервиса
+
+#### Проблема: Ошибки базы данных
+
+**Решение**: 
+1. Убедитесь, что миграции выполнены
+2. Проверьте переменные окружения для базы данных
+3. Убедитесь, что `DB_SSL=true` установлен для Render PostgreSQL
+
+#### Проблема: Last.fm авторизация не работает
+
+**Решение**: 
+1. Проверьте `LASTFM_REDIRECT_URI` - он должен точно совпадать с URL в Last.fm настройках
+2. Убедитесь, что используете HTTPS URL (не HTTP)
+
+## Структура проекта
+
+```
+final-project/
+├── render.yaml          # Конфигурация для автоматического деплоя
+├── server/              # Express backend
+│   ├── src/
+│   │   └── server.js    # Точка входа сервера
+│   └── db/              # Sequelize модели и миграции
+└── next/                # Next.js frontend
+    └── app/             # Next.js App Router
+```
+
+## Полезные ссылки
+
+- [Render Documentation](https://render.com/docs)
+- [Next.js Deployment](https://nextjs.org/docs/deployment)
+- [Sequelize Migrations](https://sequelize.org/docs/v6/other-topics/migrations/)
