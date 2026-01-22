@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: true,
           message: "Using cached data",
-          count: dbTracksResult.data?.count || 0,
+          count: (dbTracksResult.data as any)?.total || 0,
           cached: true,
           lastSyncedAt: user.lovedTracksLastSyncedAt,
         });
