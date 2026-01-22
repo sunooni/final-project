@@ -20,10 +20,17 @@ const periodLabel: Record<Period, string> = {
 };
 
 async function fetchTopArtists(username: string, period: Period) {
+  if (!lastfmConfig.apiKey) {
+    console.error('Last.fm API key не настроен');
+    return [];
+  }
+
+  const apiKey: string = lastfmConfig.apiKey;
+
   const res = await fetch(
     `https://ws.audioscrobbler.com/2.0/?method=user.gettopartists&user=${encodeURIComponent(
       username
-    )}&period=${period}&limit=5&api_key=${lastfmConfig.apiKey}&format=json`
+    )}&period=${period}&limit=5&api_key=${apiKey}&format=json`
   );
   const data = await res.json();
   return data.topartists?.artist ?? [];

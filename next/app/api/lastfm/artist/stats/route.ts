@@ -9,6 +9,15 @@ import { lastfmConfig } from '@/config/lastfm';
  */
 export async function GET(request: Request) {
   try {
+    if (!lastfmConfig.apiKey) {
+      return NextResponse.json(
+        { error: 'Last.fm API key не настроен' },
+        { status: 500 }
+      );
+    }
+
+    const apiKey: string = lastfmConfig.apiKey;
+
     const { searchParams } = new URL(request.url);
     const artistName = searchParams.get('artist');
     const friendNames = searchParams.get('friends')?.split(',') || [];
@@ -39,7 +48,7 @@ export async function GET(request: Request) {
           url.searchParams.set('user', friendName.trim());
           url.searchParams.set('limit', '100'); // Увеличенный лимит для совместимости
           url.searchParams.set('period', 'overall'); // Берем за все время
-          url.searchParams.set('api_key', lastfmConfig.apiKey);
+          url.searchParams.set('api_key', apiKey);
           url.searchParams.set('format', 'json');
 
           console.log(`Загружаем топ артистов для ${friendName}...`);

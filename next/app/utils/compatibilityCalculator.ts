@@ -39,6 +39,13 @@ export async function getUserGenres(
 ): Promise<Map<string, number>> {
   const genreMap = new Map<string, number>();
 
+  if (!lastfmConfig.apiKey) {
+    console.error('Last.fm API key не настроен');
+    return genreMap;
+  }
+
+  const apiKey: string = lastfmConfig.apiKey;
+
   try {
     // Получаем loved tracks пользователя (используем ту же логику, что и в galaxy)
     let allTracks: Track[] = [];
@@ -56,7 +63,7 @@ export async function getUserGenres(
         url.searchParams.set('user', username);
         url.searchParams.set('page', page.toString());
         url.searchParams.set('limit', limit.toString());
-        url.searchParams.set('api_key', lastfmConfig.apiKey);
+        url.searchParams.set('api_key', apiKey);
         url.searchParams.set('format', 'json');
 
         const response = await fetch(url.toString());
@@ -85,7 +92,7 @@ export async function getUserGenres(
           url.searchParams.set('user', username);
           url.searchParams.set('page', page.toString());
           url.searchParams.set('limit', limit.toString());
-          url.searchParams.set('api_key', lastfmConfig.apiKey);
+          url.searchParams.set('api_key', apiKey);
           url.searchParams.set('format', 'json');
 
           const response = await fetch(url.toString());
@@ -156,7 +163,7 @@ export async function getUserGenres(
             const url = new URL('https://ws.audioscrobbler.com/2.0/');
             url.searchParams.set('method', 'artist.getInfo');
             url.searchParams.set('artist', artistName);
-            url.searchParams.set('api_key', lastfmConfig.apiKey);
+            url.searchParams.set('api_key', apiKey);
             url.searchParams.set('format', 'json');
 
             const response = await fetch(url.toString());
@@ -214,13 +221,20 @@ async function getUserGenresFromTopArtists(
 ): Promise<Map<string, number>> {
   const genreMap = new Map<string, number>();
 
+  if (!lastfmConfig.apiKey) {
+    console.error('Last.fm API key не настроен');
+    return genreMap;
+  }
+
+  const apiKey: string = lastfmConfig.apiKey;
+
   try {
     const url = new URL('https://ws.audioscrobbler.com/2.0/');
     url.searchParams.set('method', 'user.getTopArtists');
     url.searchParams.set('user', username);
     url.searchParams.set('period', 'overall');
     url.searchParams.set('limit', limit.toString());
-    url.searchParams.set('api_key', lastfmConfig.apiKey);
+    url.searchParams.set('api_key', apiKey);
     url.searchParams.set('format', 'json');
 
     const response = await fetch(url.toString());
@@ -248,7 +262,7 @@ async function getUserGenresFromTopArtists(
             const artistUrl = new URL('https://ws.audioscrobbler.com/2.0/');
             artistUrl.searchParams.set('method', 'artist.getInfo');
             artistUrl.searchParams.set('artist', artistName);
-            artistUrl.searchParams.set('api_key', lastfmConfig.apiKey);
+            artistUrl.searchParams.set('api_key', apiKey);
             artistUrl.searchParams.set('format', 'json');
 
             const artistResponse = await fetch(artistUrl.toString());
