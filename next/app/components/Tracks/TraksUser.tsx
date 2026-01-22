@@ -223,7 +223,7 @@ export const TraksUser = () => {
     <div className="h-full flex flex-col">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-black dark:text-zinc-50 mb-4">
-          Карта вкуса
+          Ваши треки
         </h1>
 
         {isAuthenticated === false && (
