@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
-import { callLastfmApi, getLastfmUsername } from '@/app/lib/lastfm';
-import { lastfmConfig } from '@/config/lastfm';
+import { callLastfmApi, callLastfmPublicApi, getLastfmUsername } from '@/app/lib/lastfm';
+
+// Кэш для результатов galaxy endpoint
+const galaxyCache = new Map<string, { data: any; expiresAt: number }>();
+const GALAXY_CACHE_TTL = 30 * 60 * 1000; // 30 минут
 
 interface Track {
   name: string;
@@ -48,15 +51,24 @@ export async function GET(request: Request) {
       );
     }
     
+    // Проверяем кэш
+    const cacheKey = `galaxy-${username}`;
+    const cached = galaxyCache.get(cacheKey);
+    if (cached && Date.now() < cached.expiresAt) {
+      console.log('Returning cached galaxy data');
+      return NextResponse.json(cached.data);
+    }
+    
     console.log(`Fetching galaxy data for user: ${username}`);
 
-    // Get all loved tracks (fetch multiple pages)
+    // Get all loved tracks (fetch multiple pages, limit to 3 for faster load)
     let allTracks: Track[] = [];
     let page = 1;
     const limit = 50;
+    const maxPages = 3; // Reduced from 10 to 3 for faster initial load
     let hasMore = true;
 
-    while (hasMore && page <= 10) { // Limit to 10 pages (500 tracks max)
+    while (hasMore && page <= maxPages) {
       const data = await callLastfmApi('user.getLovedTracks', {
         user: username,
         page: page.toString(),
@@ -113,14 +125,20 @@ export async function GET(request: Request) {
     const genreMap: Record<string, Genre> = {};
     
     // Process artists in batches to avoid rate limiting
-    const artistNames = Object.keys(artistTracks).filter(name => name && name !== 'undefined');
+    // Ограничиваем количество артистов для анализа (топ 30 по количеству треков)
+    const artistNames = Object.keys(artistTracks)
+      .filter(name => name && name !== 'undefined')
+      .sort((a, b) => (artistTracks[b]?.tracks?.length || 0) - (artistTracks[a]?.tracks?.length || 0))
+      .slice(0, 30); // Анализируем только топ 30 артистов для быстрой загрузки
     
     if (artistNames.length === 0) {
       console.warn('No valid artist names found');
       return NextResponse.json({ genres: [] });
     }
     
-    const batchSize = 5;
+    console.log(`Analyzing ${artistNames.length} top artists (out of ${Object.keys(artistTracks).length} total)`);
+    
+    const batchSize = 10; // Увеличиваем размер батча для параллельной обработки
     
     for (let i = 0; i < artistNames.length; i += batchSize) {
       const batch = artistNames.slice(i, i + batchSize);
@@ -132,20 +150,16 @@ export async function GET(request: Request) {
             return;
           }
           
-          // Use public API method - no authentication needed
-          const url = new URL('https://ws.audioscrobbler.com/2.0/');
-          url.searchParams.set('method', 'artist.getInfo');
-          url.searchParams.set('artist', artistName);
-          url.searchParams.set('api_key', lastfmConfig.apiKey);
-          url.searchParams.set('format', 'json');
-
-          const response = await fetch(url.toString());
-          if (!response.ok) {
-            console.error(`Failed to fetch artist ${artistName}: ${response.status}`);
+          // Use public API method with caching - no authentication needed
+          const artistData = await callLastfmPublicApi('artist.getInfo', {
+            artist: artistName,
+          });
+          
+          if (!artistData || !artistData.artist) {
+            console.warn(`No artist info for ${artistName}`);
             return;
           }
-
-          const artistData = await response.json();
+          
           const artistInfo: ArtistInfo = artistData.artist;
           if (!artistInfo || !artistInfo.name) {
             console.warn(`No artist info for ${artistName}`);
@@ -196,9 +210,9 @@ export async function GET(request: Request) {
         }
       }));
 
-      // Small delay between batches to avoid rate limiting
+      // Уменьшаем задержку между батчами (кэш уже помогает избежать rate limiting)
       if (i + batchSize < artistNames.length) {
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
 
@@ -216,7 +230,15 @@ export async function GET(request: Request) {
 
     console.log(`Returning ${genres.length} genres with artists`);
 
-    return NextResponse.json({ genres });
+    const result = { genres };
+    
+    // Сохраняем в кэш
+    galaxyCache.set(cacheKey, {
+      data: result,
+      expiresAt: Date.now() + GALAXY_CACHE_TTL
+    });
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Error fetching galaxy data:', error);
     return NextResponse.json(

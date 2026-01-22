@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       const endTimestamp = Math.floor(Date.now() / 1000);
       const startTimestamp = endTimestamp - (days * 24 * 60 * 60);
   
-      // 1. Получить треки из Last.fm
+      // 1. Получить треки из Last.fm (загружаем все страницы)
       const fetchRecentTracks = async (from: number, to: number, page = 1): Promise<any[]> => {
         const data = await callLastfmApi('user.getRecentTracks', {
           user: username,
@@ -32,12 +32,21 @@ export async function POST(request: Request) {
           to: to.toString(),
           limit: '200',
           page: page.toString(),
-        });
+        }, { useCache: false });
   
-        const tracks = data.recenttracks?.track || [];
+        const tracks = Array.isArray(data.recenttracks?.track)
+          ? data.recenttracks.track
+          : data.recenttracks?.track
+          ? [data.recenttracks.track]
+          : [];
+        
         const totalPages = parseInt(data.recenttracks?.['@attr']?.totalPages || '1');
+        const currentPage = parseInt(data.recenttracks?.['@attr']?.page || '1');
   
-        if (page < Math.min(totalPages, 5)) {
+        // Если есть еще страницы, загружаем их
+        if (currentPage < totalPages) {
+          // Небольшая задержка между запросами
+          await new Promise((resolve) => setTimeout(resolve, 300));
           const nextPage = await fetchRecentTracks(from, to, page + 1);
           return [...tracks, ...nextPage];
         }
