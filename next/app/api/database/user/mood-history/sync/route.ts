@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         message: 'Data synced successfully',
-        syncedCount: syncResult.data?.count || lastfmTracks.length
+        syncedCount: (syncResult.data as { count?: number })?.count || lastfmTracks.length
       });
     } catch (error) {
       console.error('Error syncing mood history:', error);
