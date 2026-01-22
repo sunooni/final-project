@@ -1,18 +1,27 @@
-"use client";
+import { Suspense } from 'react';
+import dynamic from 'next/dynamic';
 
-import { motion } from "framer-motion";
-import { Friends } from "@/app/components/Friends/Friends";
+// Отключаем статическую генерацию для этой страницы
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const Friends = dynamic(
+  () => import('@/app/components/Friends/Friends').then(mod => ({ default: mod.Friends })),
+  { ssr: false }
+);
 
 export default function FriendsPage() {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.3 }}
-      className="h-[calc(100vh-8rem)]"
-    >
-      <Friends />
-    </motion.div>
+    <Suspense fallback={
+      <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-xl mb-2 text-white">Загрузка...</div>
+        </div>
+      </div>
+    }>
+      <div className="h-[calc(100vh-8rem)]">
+        <Friends />
+      </div>
+    </Suspense>
   );
 }

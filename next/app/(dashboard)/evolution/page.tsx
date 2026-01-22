@@ -1,18 +1,27 @@
-'use client';
+import { Suspense } from 'react';
+import dynamic from 'next/dynamic';
 
-import { motion } from 'framer-motion';
-import { EvolutionTimeline } from '@/app/components/Evolution/EvolutionTimeline';
+// Отключаем статическую генерацию для этой страницы
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const EvolutionTimeline = dynamic(
+  () => import('@/app/components/Evolution/EvolutionTimeline').then(mod => ({ default: mod.EvolutionTimeline })),
+  { ssr: false }
+);
 
 export default function EvolutionPage() {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.3 }}
-      className="h-[calc(100vh-8rem)]"
-    >
-      <EvolutionTimeline />
-    </motion.div>
+    <Suspense fallback={
+      <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-xl mb-2 text-white">Загрузка...</div>
+        </div>
+      </div>
+    }>
+      <div className="h-[calc(100vh-8rem)]">
+        <EvolutionTimeline />
+      </div>
+    </Suspense>
   );
 }
