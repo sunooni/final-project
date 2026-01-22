@@ -138,7 +138,7 @@ export interface ListeningDay {
             const moods = await analyzeTrackMood(artist, track);
             
             // Распределяем настроения по дням
-            recentTracks.forEach(({ date }) => {
+            recentTracks.forEach(({ date }: { date: string }) => {
               const dayData = daysMap.get(date);
               if (dayData) {
                 Object.entries(moods).forEach(([mood, count]) => {
