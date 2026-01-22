@@ -229,6 +229,12 @@ export async function GET(request: NextRequest) {
 
   try {
     const { apiKey, sharedSecret } = lastfmConfig;
+    if (!apiKey || !sharedSecret) {
+      console.error("Last.fm API config missing: apiKey or sharedSecret");
+      return NextResponse.redirect(
+        new URL("/auth/lastfm?error=config_missing", request.url)
+      );
+    }
 
     // Get session key from Last.fm
     const apiSig = generateApiSignature(
@@ -283,8 +289,6 @@ export async function GET(request: NextRequest) {
     // Get user info from Last.fm API using session key directly
     let userInfo: any = null;
     try {
-      const { apiKey, sharedSecret } = lastfmConfig;
-      
       // Build parameters for user.getInfo call
       const userInfoParams: Record<string, string> = {
         method: "user.getInfo",

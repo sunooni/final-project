@@ -4,9 +4,9 @@ import { lastfmConfig } from "@/config/lastfm";
 export async function GET() {
   const { apiKey, redirectUri } = lastfmConfig;
 
-  if (!apiKey) {
+  if (!apiKey || !redirectUri) {
     return NextResponse.json(
-      { error: "LASTFM_API_KEY is not configured" },
+      { error: "LASTFM_API_KEY or LASTFM_REDIRECT_URI is not configured" },
       { status: 500 }
     );
   }

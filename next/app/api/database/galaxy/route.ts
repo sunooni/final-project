@@ -8,7 +8,8 @@ const GALAXY_CACHE_TTL = 30 * 60 * 1000; // 30 минут
 interface Track {
   name: string;
   artist: {
-    '#text': string;
+    '#text'?: string;
+    name?: string;
     mbid?: string;
   };
   url: string;
