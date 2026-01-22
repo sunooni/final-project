@@ -1,3 +1,5 @@
+'use client';
+
 import { motion } from 'framer-motion';
 import { TrendingUp, Music, Calendar } from 'lucide-react';
 import { useUserStore } from '@/app/stores/userStore';

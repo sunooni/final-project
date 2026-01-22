@@ -1,7 +1,12 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
-import { EmotionalCalendar } from '@/app/components/Emotion/EmotionalCalendar';
+
+const EmotionalCalendar = dynamic(
+  () => import('@/app/components/Emotion/EmotionalCalendar').then(mod => ({ default: mod.EmotionalCalendar })),
+  { ssr: false }
+);
 
 export default function EmotionsPage() {
   return (

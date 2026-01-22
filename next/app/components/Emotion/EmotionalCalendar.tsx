@@ -1,3 +1,5 @@
+'use client';
+
 import { useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useUserStore, ListeningDay } from '@/app/stores/userStore';
