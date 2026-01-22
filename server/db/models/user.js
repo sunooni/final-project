@@ -18,6 +18,8 @@ module.exports = (sequelize, DataTypes) => {
       realname: DataTypes.STRING,
       image: DataTypes.TEXT,
       url: DataTypes.TEXT,
+      lovedTracksLastSyncedAt: DataTypes.DATE,
+      recentTracksLastSyncedAt: DataTypes.DATE,
     },
     {
       sequelize,

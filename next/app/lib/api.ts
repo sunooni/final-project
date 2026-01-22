@@ -26,6 +26,24 @@ async function fetchApi<T>(
       },
     });
 
+    // Проверяем Content-Type перед парсингом
+    const contentType = response.headers.get('content-type');
+    const isJson = contentType?.includes('application/json');
+
+    if (!isJson) {
+      // Если ответ не JSON, читаем как текст для диагностики
+      const text = await response.text();
+      console.error(`Non-JSON response from ${API_BASE_URL}${endpoint}:`, {
+        status: response.status,
+        statusText: response.statusText,
+        contentType,
+        bodyPreview: text.substring(0, 200),
+      });
+      return {
+        error: `Server returned ${contentType || 'non-JSON'} response. Status: ${response.status} ${response.statusText}`,
+      };
+    }
+
     const data = await response.json();
 
     if (!response.ok) {
@@ -36,6 +54,7 @@ async function fetchApi<T>(
 
     return { data };
   } catch (error) {
+    console.error(`Error in fetchApi for ${API_BASE_URL}${endpoint}:`, error);
     return {
       error: error instanceof Error ? error.message : 'Network error',
     };

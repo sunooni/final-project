@@ -2,6 +2,7 @@
 
 import Assistant from "../components/Assistant/Assistant";
 import { Navigation } from "../components/Navigation/Navigation";
+import { PreloadTrigger } from "../components/PreloadTrigger";
 
 export default function DashboardLayout({
   children,
@@ -10,6 +11,7 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
+      <PreloadTrigger />
       <Navigation />
       <Assistant />
 

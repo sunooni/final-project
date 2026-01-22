@@ -34,8 +34,103 @@ export const Friends = () => {
   const [isLoadingTrack, setIsLoadingTrack] = useState(false);
   const [trackError, setTrackError] = useState<string | null>(null);
 
-  // Друзья из Last.fm
-  const { friends } = userFriendsStore();
+  // Store теперь обращается к  Last.fm API через наш бэкенд
+  const { friends, isLoading, isRefreshing, error, fetchFriends } = userFriendsStore();
+
+  // Получаем друзей из LastFm (stale-while-revalidate: показываем кэш сразу, обновляем в фоне)
+  useEffect(() => {
+    fetchFriends();
+  }, []);
+
+  // Функция для загрузки топ артиста друга
+  const fetchFriendTopArtist = async (friendName: string) => {
+    // Если уже загружаем или уже загрузили, пропускаем
+    if (loadingArtists.has(friendName) || friendsWithArtists.has(friendName)) {
+      return;
+    }
+
+    setLoadingArtists(prev => new Set(prev).add(friendName));
+
+    try {
+      const response = await fetch(`/api/lastfm/user/top-artist?username=${encodeURIComponent(friendName)}&period=overall`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.artist?.name) {
+          setFriendsWithArtists(prev => new Map(prev).set(friendName, data.artist.name));
+        }
+      }
+    } catch (error) {
+      console.error(`Error fetching top artist for ${friendName}:`, error);
+    } finally {
+      setLoadingArtists(prev => {
+        const next = new Set(prev);
+        next.delete(friendName);
+        return next;
+      });
+    }
+  };
+
+  // Загружаем топ артистов для всех друзей параллельно (батчами по 5 для избежания rate limiting)
+  useEffect(() => {
+    if (friends.length > 0) {
+      const loadArtistsInBatches = async () => {
+        const batchSize = 5;
+        const batches = [];
+        
+        for (let i = 0; i < friends.length; i += batchSize) {
+          const batch = friends.slice(i, i + batchSize);
+          batches.push(batch);
+        }
+        
+        // Загружаем батчи последовательно, но внутри батча - параллельно
+        for (const batch of batches) {
+          await Promise.all(
+            batch.map(friend => fetchFriendTopArtist(friend.name))
+          );
+          
+          // Небольшая задержка между батчами для избежания rate limiting
+          if (batches.indexOf(batch) < batches.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        }
+      };
+      
+      loadArtistsInBatches();
+    }
+  }, [friends]);
+
+  // Функция для получения URL аватара из массива изображений Last.fm
+  // Last.fm возвращает массив изображений разных размеров, выбираем подходящий
+  const getAvatarUrl = (images: Array<{ "#text": string; size: string }>) => {
+    if (!images || images.length === 0) return null;
+    
+    // Ищем изображение среднего размера, если нет - берем любое доступное
+    const mediumImage = images.find(img => img.size === 'medium');
+    const largeImage = images.find(img => img.size === 'large');
+    const anyImage = images.find(img => img["#text"]);
+    
+    return mediumImage?.["#text"] || largeImage?.["#text"] || anyImage?.["#text"] || null;
+  };
+
+  // Функция для получения первой буквы имени для аватара-заглушки
+  // Используется когда у пользователя нет изображения профиля
+  const getInitial = (name: string, realname?: string) => {
+    const displayName = realname || name;
+    return displayName.charAt(0).toUpperCase();
+  };
+
+  const startGame = () => {
+    const artists = [
+      "Radiohead",
+      "Daft Punk",
+      "Kendrick Lamar",
+      "Frank Ocean",
+      "The Weeknd",
+    ];
+    setGameArtist(artists[Math.floor(Math.random() * artists.length)]);
+    setGameActive(true);
+  };
 
   const handleFriendClick = async (friend: Friend) => {
     setSelectedFriend(friend);
@@ -65,6 +160,37 @@ export const Friends = () => {
       setIsLoadingTrack(false);
     }
   };
+
+  // Автоматическое обновление трека каждую минуту, если выбран друг
+  useEffect(() => {
+    if (!selectedFriend) return;
+
+    const updateTrack = async () => {
+      // Не показываем индикатор загрузки при автоматическом обновлении
+      try {
+        const response = await fetch(`/api/lastfm/user/friend-recent-tracks?username=${selectedFriend.name}&limit=1&_t=${Date.now()}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          const tracks = data.tracks || [];
+          
+          if (tracks.length > 0) {
+            setRecentTrack(tracks[0]);
+            setTrackError(null);
+          }
+        }
+      } catch (error) {
+        // Игнорируем ошибки при автоматическом обновлении, чтобы не мешать пользователю
+        console.error('Error auto-updating track:', error);
+      }
+    };
+
+    // Обновляем сразу при выборе друга, затем каждую минуту
+    updateTrack(); // Первое обновление сразу
+    const interval = setInterval(updateTrack, 60 * 1000); // Затем каждую минуту
+
+    return () => clearInterval(interval);
+  }, [selectedFriend]);
 
   const formatDate = (dateObj: { uts: string; text: string }) => {
     const date = new Date(parseInt(dateObj.uts) * 1000);
@@ -118,11 +244,44 @@ export const Friends = () => {
       </motion.div>
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Список друзей из Last.fm */}
-        <FriendsList 
-          onFriendSelect={handleFriendClick}
-          selectedFriendId={selectedFriend?.id || null}
-        />
+        {/* Friends List - теперь использует данные из Last.fm */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.2 }}
+          className="glass-card rounded-2xl p-6"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <Users className="w-6 h-6 text-primary" />
+            <h3 className="text-xl font-semibold">Ваши друзья</h3>
+          </div>
+
+          {/* Показываем skeleton loaders при первой загрузке */}
+          {isLoading && friends.length === 0 && (
+            <div className="space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 animate-pulse"
+                >
+                  <div className="w-12 h-12 rounded-full bg-muted/50"></div>
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-muted/50 rounded w-3/4"></div>
+                    <div className="h-3 bg-muted/30 rounded w-1/2"></div>
+                  </div>
+                  <div className="w-16 h-8 bg-muted/50 rounded"></div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Показываем индикатор обновления в фоне */}
+          {isRefreshing && friends.length > 0 && (
+            <div className="flex items-center justify-center py-2 mb-4">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+              <span className="ml-2 text-xs text-muted-foreground">Обновление...</span>
+            </div>
+          )}
 
         {/* Игра и последний трек */}
         <div className="space-y-6">
@@ -143,16 +302,11 @@ export const Friends = () => {
 
             {selectedFriend ? (
               <div className="space-y-4">
-<<<<<<< HEAD
-                {/* Информация о друге */}
-                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
-=======
                 {/* Friend Info - теперь кликабельная */}
                 <div 
                   className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/40 transition-colors"
                   onClick={() => window.open(selectedFriend.url, '_blank')}
                 >
->>>>>>> main
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-nebula-purple to-nebula-pink flex items-center justify-center font-bold overflow-hidden">
                     {(() => {
                       const avatarUrl = getAvatarUrl(selectedFriend.avatar);
@@ -265,24 +419,6 @@ export const Friends = () => {
                       </motion.div>
                     )}
 
-<<<<<<< HEAD
-                    {/* Действия */}
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="cosmic" 
-                        className="flex-1"
-                        onClick={() => window.open(recentTrack.url, '_blank')}
-                      >
-                        Открыть в Last.fm
-                      </Button>
-                      <Button 
-                        variant="glass"
-                        onClick={() => window.open(selectedFriend.url, '_blank')}
-                      >
-                        Профиль
-                      </Button>
-                    </div>
-=======
                     {/* Actions - только кнопка Last.fm */}
                     <Button 
                       variant="cosmic" 
@@ -291,7 +427,6 @@ export const Friends = () => {
                     >
                       Открыть в Last.fm
                     </Button>
->>>>>>> main
                   </div>
                 ) : (
                   <div className="text-center py-6">

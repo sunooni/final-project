@@ -2,6 +2,10 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server"
 import { Mood, analyzeTrackMood } from '@/app/utils/moodAnalyzer'
 
+// Кэш для результатов mood history
+const moodHistoryCache = new Map<string, { data: any; expiresAt: number }>();
+const CACHE_TTL = 30 * 60 * 1000; // 30 минут
+
 export interface ListeningDay {
     date: string;
     tracks: number;
@@ -26,11 +30,18 @@ export interface ListeningDay {
       const { searchParams } = new URL(request.url);
       const days = parseInt(searchParams.get('days') || '365');
       
+      // 3. Проверяем кэш
+      const cacheKey = `${userId}-${days}`;
+      const cached = moodHistoryCache.get(cacheKey);
+      if (cached && Date.now() < cached.expiresAt) {
+        return NextResponse.json(cached.data);
+      }
+      
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
   
-      // 3. Запросить данные из Express API
+      // 4. Запросить данные из Express API
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/music';
       let response;
       
@@ -108,11 +119,19 @@ export interface ListeningDay {
         daysMap.get(dateStr)!.tracks++;
       });
   
-      // 6. Анализ настроений (ограничиваем до 100 уникальных треков)
-      const trackList = Array.from(uniqueTracks.values()).slice(0, 100);
+      // 6. Анализ настроений (используем все уникальные треки)
+      const trackList = Array.from(uniqueTracks.values());
+      const batchSize = 20; // Увеличиваем размер батча для ускорения
+      const totalTracks = trackList.length;
       
-      for (let i = 0; i < trackList.length; i += 10) {
-        const batch = trackList.slice(i, i + 10);
+      console.log(`Analyzing ${totalTracks} unique tracks for mood history...`);
+      
+      for (let i = 0; i < trackList.length; i += batchSize) {
+        const batch = trackList.slice(i, i + batchSize);
+        const batchNum = Math.floor(i / batchSize) + 1;
+        const totalBatches = Math.ceil(totalTracks / batchSize);
+        
+        console.log(`Processing batch ${batchNum}/${totalBatches} (${batch.length} tracks)...`);
         
         await Promise.all(batch.map(async ({ artist, track, recentTracks }) => {
           try {
@@ -135,10 +154,13 @@ export interface ListeningDay {
           }
         }));
   
-        if (i + 10 < trackList.length) {
-          await new Promise(resolve => setTimeout(resolve, 500));
+        // Небольшая задержка между батчами для избежания перегрузки API
+        if (i + batchSize < trackList.length) {
+          await new Promise(resolve => setTimeout(resolve, 200));
         }
       }
+      
+      console.log(`Mood analysis completed for ${totalTracks} tracks`);
   
       // 7. Преобразование в ListeningDay[]
       const history: ListeningDay[] = [];
@@ -167,7 +189,15 @@ export interface ListeningDay {
         (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
       );
       
-      return NextResponse.json({ history: sortedHistory });
+      const result = { history: sortedHistory };
+      
+      // Сохраняем в кэш
+      moodHistoryCache.set(cacheKey, {
+        data: result,
+        expiresAt: Date.now() + CACHE_TTL
+      });
+      
+      return NextResponse.json(result);
     } catch (error) {
       console.error('Error fetching mood history from database:', error);
       return NextResponse.json(

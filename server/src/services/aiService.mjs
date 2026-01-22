@@ -195,7 +195,7 @@ async function searchWebDuckDuckGoHTML(query) {
       return {
         summary: summary.substring(0, 800),
         source: results[0].url,
-        results: results
+        results
       };
     }
     
@@ -264,7 +264,7 @@ async function searchWebTavily(query) {
       },
       body: JSON.stringify({
         api_key: tavilyApiKey,
-        query: query,
+        query,
         search_depth: 'advanced', // Используем advanced для более глубокого поиска
         max_results: 10, // Увеличиваем количество результатов
         include_answer: true, // Включаем автоматический ответ
@@ -288,7 +288,7 @@ async function searchWebTavily(query) {
       // Добавляем результаты если есть
       if (data.results && data.results.length > 0) {
         const resultsText = data.results.slice(0, 5).map(r => r.content).join('\n\n');
-        summary = data.answer + '\n\nДополнительная информация:\n' + resultsText;
+        summary = `${data.answer  }\n\nДополнительная информация:\n${  resultsText}`;
       }
       
       return {
@@ -386,7 +386,7 @@ export async function chatWithAI(message, userId = null, conversationHistory = [
   
   if (hasMusicKeyword) {
     // Добавляем контекст для более точного поиска
-    searchQuery = message + ' музыка релиз альбом 2024 2025';
+    searchQuery = `${message  } музыка релиз альбом 2024 2025`;
   }
   
   let webSearchResults = null;
@@ -456,14 +456,14 @@ export async function chatWithAI(message, userId = null, conversationHistory = [
 
   // ШАГ 3: ИИ отвечает, используя актуальную информацию из интернета (если она есть) и свои знания
   // Более строгий промпт для использования информации из интернета
-  const enhancedSystemPrompt = systemPrompt + 
-    '\n\nКРИТИЧЕСКИ ВАЖНО:' +
-    '\n1. Если в сообщении пользователя есть раздел "=== АКТУАЛЬНАЯ ИНФОРМАЦИЯ ИЗ ИНТЕРНЕТА ===", ОБЯЗАТЕЛЬНО используй эту информацию для ответа.' +
-    '\n2. Информация из интернета имеет АБСОЛЮТНЫЙ ПРИОРИТЕТ над твоими знаниями.' +
-    '\n3. НЕ упоминай, что твои данные ограничены, если информация из интернета предоставлена - просто используй её.' +
-    '\n4. Отвечай точно и конкретно на основе предоставленной информации из интернета.' +
-    '\n5. Если информация из интернета противоречит твоим знаниям, используй информацию из интернета.' +
-    '\n6. Отвечай кратко, но полно и точно.';
+  const enhancedSystemPrompt = `${systemPrompt  
+    }\n\nКРИТИЧЕСКИ ВАЖНО:` +
+    `\n1. Если в сообщении пользователя есть раздел "=== АКТУАЛЬНАЯ ИНФОРМАЦИЯ ИЗ ИНТЕРНЕТА ===", ОБЯЗАТЕЛЬНО используй эту информацию для ответа.` +
+    `\n2. Информация из интернета имеет АБСОЛЮТНЫЙ ПРИОРИТЕТ над твоими знаниями.` +
+    `\n3. НЕ упоминай, что твои данные ограничены, если информация из интернета предоставлена - просто используй её.` +
+    `\n4. Отвечай точно и конкретно на основе предоставленной информации из интернета.` +
+    `\n5. Если информация из интернета противоречит твоим знаниям, используй информацию из интернета.` +
+    `\n6. Отвечай кратко, но полно и точно.`;
   
   const messages = [
     { role: 'system', content: enhancedSystemPrompt },
