@@ -217,14 +217,23 @@ export async function GET(request: NextRequest) {
   const token = searchParams.get("token");
   const error = searchParams.get("error");
 
+  // Функция для получения правильного базового URL (для Render и других прокси)
+  const getBaseUrl = () => {
+    const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || new URL(request.url).host;
+    const protocol = request.headers.get('x-forwarded-proto') || (request.url.startsWith('https') ? 'https' : 'http');
+    return `${protocol}://${host}`;
+  };
+
+  const baseUrl = getBaseUrl();
+
   if (error) {
     return NextResponse.redirect(
-      new URL(`/auth/lastfm?error=${encodeURIComponent(error)}`, request.url)
+      new URL(`/auth/lastfm?error=${encodeURIComponent(error)}`, baseUrl)
     );
   }
 
   if (!token) {
-    return NextResponse.redirect(new URL("/auth/lastfm?error=no_token", request.url));
+    return NextResponse.redirect(new URL("/auth/lastfm?error=no_token", baseUrl));
   }
 
   try {
@@ -232,7 +241,7 @@ export async function GET(request: NextRequest) {
     if (!apiKey || !sharedSecret) {
       console.error("Last.fm API config missing: apiKey or sharedSecret");
       return NextResponse.redirect(
-        new URL("/auth/lastfm?error=config_missing", request.url)
+        new URL("/auth/lastfm?error=config_missing", baseUrl)
       );
     }
 
@@ -261,7 +270,7 @@ export async function GET(request: NextRequest) {
       const errorData = await sessionResponse.text();
       console.error("Session error:", errorData);
       return NextResponse.redirect(
-        new URL("/auth/lastfm?error=session_failed", request.url)
+        new URL("/auth/lastfm?error=session_failed", baseUrl)
       );
     }
 
@@ -272,7 +281,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(
         new URL(
           `/auth/lastfm?error=${encodeURIComponent(sessionData.message)}`,
-          request.url
+          baseUrl
         )
       );
     }
@@ -282,7 +291,7 @@ export async function GET(request: NextRequest) {
 
     if (!sessionKey || !username) {
       return NextResponse.redirect(
-        new URL("/auth/lastfm?error=no_session_key", request.url)
+        new URL("/auth/lastfm?error=no_session_key", baseUrl)
       );
     }
 
@@ -400,7 +409,7 @@ export async function GET(request: NextRequest) {
 
       // Запускаем предзагрузку данных для всех страниц в фоне
       setTimeout(() => {
-        fetch(new URL("/api/preload", request.url), {
+        fetch(new URL("/api/preload", baseUrl), {
           method: 'POST',
         }).catch((error) => {
           console.error("Preload error:", error);
@@ -409,13 +418,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Добавляем параметр для указания, что нужно запустить предзагрузку на клиенте
-    const redirectUrl = new URL("/tracks", request.url);
+    const redirectUrl = new URL("/tracks", baseUrl);
     redirectUrl.searchParams.set("preload", "true");
     return NextResponse.redirect(redirectUrl);
   } catch (error) {
     console.error("Last.fm OAuth callback error:", error);
     return NextResponse.redirect(
-      new URL("/auth/lastfm?error=internal_error", request.url)
+      new URL("/auth/lastfm?error=internal_error", baseUrl)
     );
   }
 }
