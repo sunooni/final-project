@@ -166,8 +166,8 @@ export async function POST(request: NextRequest) {
     console.log("Sync completed successfully");
     return NextResponse.json({
       success: true,
-      message: result.data?.message || "Recent tracks synced",
-      count: result.data?.count || tracks.length,
+      message: (result.data as any)?.message || "Recent tracks synced",
+      count: (result.data as any)?.count || tracks.length,
       cached: false,
     });
   } catch (error) {

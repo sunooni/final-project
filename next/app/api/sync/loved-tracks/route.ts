@@ -113,8 +113,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: result.data?.message || "Loved tracks synced",
-      count: result.data?.count || tracks.length,
+      message: (result.data as any)?.message || "Loved tracks synced",
+      count: (result.data as any)?.count || tracks.length,
       cached: false,
     });
   } catch (error) {
