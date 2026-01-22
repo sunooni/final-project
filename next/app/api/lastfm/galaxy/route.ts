@@ -83,7 +83,7 @@ export async function GET(request: Request) {
     const artistTracks: Record<string, { tracks: Track[]; url: string }> = {};
     for (const track of allTracks) {
       // Handle different possible structures of artist data
-      const artistName = track.artist?.['#text'] || track.artist?.name || track.artist;
+      const artistName = track.artist?.['#text'];
       
       // Skip tracks without valid artist name
       if (!artistName || typeof artistName !== 'string' || artistName.trim() === '') {
