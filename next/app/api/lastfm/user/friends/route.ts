@@ -42,10 +42,29 @@ export async function GET() {
     const formattedFriends = await Promise.all(
       friendsList.map(async (friend: Record<string, any>) => {
         let compatibility = 50; // Значение по умолчанию
+        let favoriteGenre: string | undefined = undefined;
 
         try {
           // Получаем жанры друга через публичный API (используем loved tracks, ограничиваем 3 страницами)
           const friendGenres = await getUserGenres(friend.name, 3, true);
+          
+          // Находим самый популярный жанр (с максимальным весом)
+          if (friendGenres.size > 0) {
+            let maxWeight = 0;
+            let topGenre = "";
+            
+            friendGenres.forEach((weight, genre) => {
+              if (weight > maxWeight) {
+                maxWeight = weight;
+                topGenre = genre;
+              }
+            });
+            
+            // Преобразуем первую букву в заглавную для красивого отображения
+            if (topGenre) {
+              favoriteGenre = topGenre.charAt(0).toUpperCase() + topGenre.slice(1);
+            }
+          }
           
           // Рассчитываем совместимость
           if (userGenres.size > 0 && friendGenres.size > 0) {
@@ -69,6 +88,7 @@ export async function GET() {
           playcount: friend.playcount || "0",
           registered: friend.registered,
           compatibility, // Реальная совместимость на основе жанров
+          favoriteGenre, // Любимый жанр друга
         };
       })
     );

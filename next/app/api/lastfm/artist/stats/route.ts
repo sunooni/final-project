@@ -3,7 +3,9 @@ import { lastfmConfig } from '@/config/lastfm';
 
 /**
  * Получить количество прослушиваний конкретного артиста для нескольких друзей
- * Используется в игре "Угадай друга" для определения, кто слушал больше
+ * Используется в игре "Угадай друга" для определения:
+ * - Кто слушал больше (если артист слушают несколько друзей)
+ * - Кто слушает (если артист уникальный - слушает только один друг)
  */
 export async function GET(request: Request) {
   try {
@@ -30,11 +32,12 @@ export async function GET(request: Request) {
     const stats = await Promise.all(
       friendNames.map(async (friendName) => {
         try {
-          // Используем метод user.getTopArtists с меньшим лимитом
+          // Используем метод user.getTopArtists с увеличенным лимитом
+          // Лимит 100 для совместимости с random-artist-from-all, который использует лимит 100
           const url = new URL('https://ws.audioscrobbler.com/2.0/');
           url.searchParams.set('method', 'user.getTopArtists');
           url.searchParams.set('user', friendName.trim());
-          url.searchParams.set('limit', '500'); // Уменьшаем лимит до 500 для снижения нагрузки
+          url.searchParams.set('limit', '100'); // Увеличенный лимит для совместимости
           url.searchParams.set('period', 'overall'); // Берем за все время
           url.searchParams.set('api_key', lastfmConfig.apiKey);
           url.searchParams.set('format', 'json');

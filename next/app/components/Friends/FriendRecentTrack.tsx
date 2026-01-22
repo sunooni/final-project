@@ -46,7 +46,7 @@ export const FriendRecentTrack = ({ friend, isOpen, onClose }: FriendRecentTrack
     setError(null);
     
     try {
-      const response = await fetch(`/api/lastfm/user/friend-recent-tracks?username=${friend.name}&limit=1`);
+      const response = await fetch(`/api/lastfm/user/friend-recent-tracks?id=${encodeURIComponent(friend.name)}&limit=1`);
       
       if (!response.ok) {
         const errorData = await response.json();

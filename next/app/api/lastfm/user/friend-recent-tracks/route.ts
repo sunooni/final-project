@@ -4,29 +4,26 @@ import { callLastfmApi } from '@/app/lib/lastfm';
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const friendUsername = searchParams.get('username');
+    const id = searchParams.get('id') ?? searchParams.get('username');
     const limit = searchParams.get('limit') || '1';
     const skipCache = searchParams.get('_t') !== null; // Если есть параметр _t, обходим кэш
 
-    if (!friendUsername) {
+    if (!id) {
       return NextResponse.json(
-        { error: 'Friend username is required' },
+        { error: 'id is required' },
         { status: 400 }
       );
     }
 
     const data = await callLastfmApi('user.getRecentTracks', {
-      user: friendUsername,
+      user: id,
       limit,
     }, {
       useCache: !skipCache, // Обходим кэш при автоматическом обновлении
     });
 
     if (!data.recenttracks || !data.recenttracks.track) {
-      return NextResponse.json({ 
-        tracks: [],
-        username: friendUsername 
-      });
+      return NextResponse.json({ tracks: [] });
     }
 
     const tracks = Array.isArray(data.recenttracks.track) 
@@ -49,8 +46,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ 
       tracks: formattedTracks,
-      username: friendUsername,
-      total: data.recenttracks['@attr']?.total || formattedTracks.length
+      total: data.recenttracks['@attr']?.total ?? formattedTracks.length
     });
   } catch (error) {
     console.error('Error fetching friend recent tracks:', error);

@@ -16,6 +16,7 @@ interface Friend {
   url: string;
   playcount: string;
   compatibility: number;
+  favoriteGenre?: string;
 }
 
 interface RecentTrack {
@@ -44,7 +45,7 @@ export const Friends = () => {
     setRecentTrack(null);
     
     try {
-      const response = await fetch(`/api/lastfm/user/friend-recent-tracks?username=${friend.name}&limit=1`);
+      const response = await fetch(`/api/lastfm/user/friend-recent-tracks?id=${encodeURIComponent(friend.id)}&limit=1`);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -143,8 +144,12 @@ export const Friends = () => {
 
             {selectedFriend ? (
               <div className="space-y-4">
-                {/* Информация о друге */}
-                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                {/* Информация о друге — клик открывает профиль */}
+                <button
+                  type="button"
+                  onClick={() => window.open(selectedFriend.url, '_blank')}
+                  className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg w-full text-left hover:bg-muted/50 transition-colors cursor-pointer"
+                >
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-nebula-purple to-nebula-pink flex items-center justify-center font-bold overflow-hidden">
                     {(() => {
                       const avatarUrl = getAvatarUrl(selectedFriend.avatar);
@@ -172,7 +177,7 @@ export const Friends = () => {
                   <div className="text-xs text-muted-foreground">
                     Нажмите для перехода в профиль
                   </div>
-                </div>
+                </button>
 
                 {/* Информация о треке */}
                 {isLoadingTrack ? (
@@ -265,12 +270,6 @@ export const Friends = () => {
                         onClick={() => window.open(recentTrack.url, '_blank')}
                       >
                         Открыть в Last.fm
-                      </Button>
-                      <Button 
-                        variant="glass"
-                        onClick={() => window.open(selectedFriend.url, '_blank')}
-                      >
-                        Профиль
                       </Button>
                     </div>
                   </div>
