@@ -8,7 +8,7 @@ import { TraksUser } from "./Tracks/TraksUser";
 import { EmotionalCalendar } from "./Emotion/EmotionalCalendar";
 import { EvolutionTimeline } from "./Evolution/EvolutionTimeline";
 import { GalaxyView } from "./Taste/GalaxyView";
-import { SocialHub } from "./Social/SocialHub";
+import { Friends } from "./Friends/Friends";
 
 const tabComponents: Record<string, React.ComponentType> = {
   map: TasteMap,
@@ -16,7 +16,7 @@ const tabComponents: Record<string, React.ComponentType> = {
   calendar: EmotionalCalendar,
   evolution: EvolutionTimeline,
   galaxy: GalaxyView,
-  social: SocialHub,
+  social: Friends,
 };
 
 export const Dashboard = () => {
