@@ -4,18 +4,18 @@ import { callLastfmApi } from '@/app/lib/lastfm';
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const friendUsername = searchParams.get('username');
+    const id = searchParams.get('id') ?? searchParams.get('username');
     const limit = searchParams.get('limit') || '50';
 
-    if (!friendUsername) {
+    if (!id) {
       return NextResponse.json(
-        { error: 'Friend username is required' },
+        { error: 'id is required' },
         { status: 400 }
       );
     }
 
     const data = await callLastfmApi('user.getLovedTracks', {
-      user: friendUsername,
+      user: id,
       limit,
     });
 
@@ -36,10 +36,7 @@ export async function GET(request: Request) {
       date: track.date ? new Date(parseInt(track.date.uts) * 1000).toISOString() : null,
     }));
 
-    return NextResponse.json({ 
-      tracks: formattedTracks,
-      username: friendUsername 
-    });
+    return NextResponse.json({ tracks: formattedTracks });
   } catch (error) {
     console.error('Error fetching friend loved tracks:', error);
     return NextResponse.json(

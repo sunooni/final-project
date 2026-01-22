@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Gamepad2, Trophy, CheckCircle, XCircle } from "lucide-react";
+import { Gamepad2, Trophy, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { useGameStore } from "@/app/stores/useGameStore";
 
@@ -18,6 +18,10 @@ interface GuessTheFriendGameProps {
 }
 
 export const GuessTheFriendGame = ({ friends }: GuessTheFriendGameProps) => {
+  // Состояние загрузки
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingError, setLoadingError] = useState<string | null>(null);
+
   // Управление состоянием игры
   const {
     isGameActive,
@@ -35,35 +39,56 @@ export const GuessTheFriendGame = ({ friends }: GuessTheFriendGameProps) => {
   } = useGameStore();
 
   // Загружаем случайного артиста из объединённой истории всех друзей
-  const loadRandomArtistFromAllFriends = useCallback(async (friendNames: string[]) => {
+  const loadRandomArtistFromAllFriends = useCallback(async (friendNames: string[], excludeArtists: string[] = []) => {
     try {
-      const response = await fetch(
-        `/api/lastfm/friends/random-artist-from-all?friends=${encodeURIComponent(friendNames.join(','))}`
-      );
+      setLoadingError(null);
+      const url = new URL('/api/lastfm/friends/random-artist-from-all', window.location.origin);
+      url.searchParams.set('friends', friendNames.join(','));
+      if (excludeArtists.length > 0) {
+        url.searchParams.set('exclude', excludeArtists.join(','));
+      }
+      
+      const response = await fetch(url.toString());
 
       if (!response.ok) {
-        console.error('Ошибка загрузки случайного артиста из истории всех друзей');
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = typeof errorData.error === 'string' 
+          ? errorData.error 
+          : 'Ошибка загрузки случайного артиста';
+        setLoadingError(errorMessage);
+        console.error('Ошибка загрузки случайного артиста из истории всех друзей:', errorMessage);
         return null;
       }
 
       const data = await response.json();
-      return data.artist?.name || null;
+      return {
+        artistName: data.artist?.name || null,
+        isUnique: data.isUnique || false,
+      };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      setLoadingError(errorMessage);
       console.error('Ошибка загрузки случайного артиста:', error);
       return null;
     }
   }, []);
 
   // Загружаем статистику прослушиваний для артиста
-  const loadArtistStats = useCallback(async (artistName: string, friendNames: string[]) => {
+  const loadArtistStats = useCallback(async (artistName: string, friendNames: string[], isUnique: boolean = false) => {
     try {
+      setLoadingError(null);
       const response = await fetch(
         `/api/lastfm/artist/stats?artist=${encodeURIComponent(artistName)}&friends=${encodeURIComponent(friendNames.join(','))}`
       );
 
       if (!response.ok) {
-        console.error('Ошибка загрузки статистики артиста');
-        return;
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = typeof errorData.error === 'string'
+          ? errorData.error
+          : 'Ошибка загрузки статистики артиста';
+        setLoadingError(errorMessage);
+        console.error('Ошибка загрузки статистики артиста:', errorMessage);
+        return false;
       }
 
       const data = await response.json();
@@ -73,11 +98,15 @@ export const GuessTheFriendGame = ({ friends }: GuessTheFriendGameProps) => {
         playcounts[stat.friend] = stat.playcount;
       });
 
-      // Устанавливаем текущего артиста с правильным другом (кто слушал больше)
+      // Устанавливаем текущего артиста с правильным другом (кто слушал больше или единственный слушатель)
       const correctFriend = data.winner.friend;
-      setCurrentArtist(artistName, correctFriend, playcounts);
+      setCurrentArtist(artistName, correctFriend, playcounts, isUnique);
+      return true;
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      setLoadingError(errorMessage);
       console.error('Ошибка загрузки статистики артиста:', error);
+      return false;
     }
   }, [setCurrentArtist]);
 
@@ -85,43 +114,70 @@ export const GuessTheFriendGame = ({ friends }: GuessTheFriendGameProps) => {
   const handleStartGame = useCallback(async () => {
     if (friends.length < 2) return;
 
-    // Инициализируем игру с выбранными друзьями (используем всех друзей или ограничиваем до 4 для лучшего UX)
-    const selectedFriends = friends.slice(0, 4).map(f => ({
-      id: f.id,
-      name: f.name,
-      realname: f.realname,
-    }));
+    setIsLoading(true);
+    setLoadingError(null);
 
-    startGame(selectedFriends);
+    try {
+      // Инициализируем игру с выбранными друзьями (используем всех друзей или ограничиваем до 4 для лучшего UX)
+      const selectedFriends = friends.slice(0, 4).map(f => ({
+        id: f.id,
+        name: f.name,
+        realname: f.realname,
+      }));
 
-    // Загружаем случайного артиста из объединённой истории всех друзей (раунд 1)
-    const randomArtist = await loadRandomArtistFromAllFriends(selectedFriends.map(f => f.name));
+      startGame(selectedFriends);
 
-    if (!randomArtist) {
-      console.error('Не удалось загрузить артиста');
-      resetGame();
-      return;
+      // Загружаем случайного артиста из объединённой истории всех друзей (раунд 1)
+      // На первом раунде нет использованных артистов
+      const artistData = await loadRandomArtistFromAllFriends(selectedFriends.map(f => f.name), []);
+
+      if (!artistData || !artistData.artistName) {
+        resetGame();
+        return;
+      }
+
+      // Загружаем статистику для этого артиста от всех друзей
+      const statsLoaded = await loadArtistStats(artistData.artistName, selectedFriends.map(f => f.name), artistData.isUnique);
+      if (!statsLoaded) {
+        resetGame();
+        return;
+      }
+    } finally {
+      setIsLoading(false);
     }
-
-    // Загружаем статистику для этого артиста от всех друзей
-    await loadArtistStats(randomArtist, selectedFriends.map(f => f.name));
   }, [friends, startGame, loadRandomArtistFromAllFriends, resetGame, loadArtistStats]);
 
   // Загружаем артиста для следующего раунда
   const loadNextRoundArtist = useCallback(async () => {
     if (gameFriends.length < 2) return;
 
-    // Загружаем случайного артиста из объединённой истории всех друзей
-    const randomArtist = await loadRandomArtistFromAllFriends(gameFriends.map(f => f.name));
+    setIsLoading(true);
+    setLoadingError(null);
 
-    if (!randomArtist) {
-      console.error('Не удалось загрузить артиста для следующего раунда');
-      return;
+    try {
+      // Получаем список уже использованных артистов из предыдущих раундов
+      const usedArtists = rounds.map(round => round.artist.toLowerCase());
+      
+      // Загружаем случайного артиста из объединённой истории всех друзей
+      // Исключаем уже использованных артистов, чтобы избежать повторов
+      const artistData = await loadRandomArtistFromAllFriends(
+        gameFriends.map(f => f.name),
+        usedArtists
+      );
+
+      if (!artistData || !artistData.artistName) {
+        return;
+      }
+
+      // Загружаем статистику для этого артиста от всех друзей
+      const statsLoaded = await loadArtistStats(artistData.artistName, gameFriends.map(f => f.name), artistData.isUnique);
+      if (!statsLoaded) {
+        return;
+      }
+    } finally {
+      setIsLoading(false);
     }
-
-    // Загружаем статистику для этого артиста от всех друзей
-    await loadArtistStats(randomArtist, gameFriends.map(f => f.name));
-  }, [gameFriends, loadRandomArtistFromAllFriends, loadArtistStats]);
+  }, [gameFriends, rounds, loadRandomArtistFromAllFriends, loadArtistStats]);
 
   // Обработка выбора друга в игре
   const handleGameFriendSelect = useCallback(async (friendName: string) => {
@@ -140,8 +196,8 @@ export const GuessTheFriendGame = ({ friends }: GuessTheFriendGameProps) => {
     }, 1500);
   }, [currentRound, selectFriend, nextRound, loadNextRoundArtist]);
 
-  // Вспомогательные функции для отображения аватара
-  const getAvatarUrl = (images: Array<{ "#text": string; size: string }>) => {
+  // Вспомогательные функции для отображения аватара (мемоизированы)
+  const getAvatarUrl = useCallback((images: Array<{ "#text": string; size: string }>) => {
     if (!images || images.length === 0) return null;
     
     const mediumImage = images.find(img => img.size === 'medium');
@@ -149,12 +205,21 @@ export const GuessTheFriendGame = ({ friends }: GuessTheFriendGameProps) => {
     const anyImage = images.find(img => img["#text"]);
     
     return mediumImage?.["#text"] || largeImage?.["#text"] || anyImage?.["#text"] || null;
-  };
+  }, []);
 
-  const getInitial = (name: string, realname?: string) => {
+  const getInitial = useCallback((name: string, realname?: string) => {
     const displayName = realname || name;
     return displayName.charAt(0).toUpperCase();
-  };
+  }, []);
+
+  // Мемоизация данных друзей для оптимизации рендеринга
+  const friendsMap = useMemo(() => {
+    const map = new Map<string, Friend>();
+    friends.forEach(friend => {
+      map.set(friend.name, friend);
+    });
+    return map;
+  }, [friends]);
 
   return (
     <motion.div
@@ -180,9 +245,18 @@ export const GuessTheFriendGame = ({ friends }: GuessTheFriendGameProps) => {
             variant="hero" 
             size="lg" 
             onClick={handleStartGame}
-            disabled={friends.length < 2}
+            disabled={friends.length < 2 || isLoading}
           >
-            {friends.length < 2 ? "Нужно минимум 2 друга" : "Начать игру"}
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Загрузка...
+              </>
+            ) : friends.length < 2 ? (
+              "Нужно минимум 2 друга"
+            ) : (
+              "Начать игру"
+            )}
           </Button>
         </div>
       ) : gameOver ? (
@@ -249,7 +323,7 @@ export const GuessTheFriendGame = ({ friends }: GuessTheFriendGameProps) => {
               {[1, 2, 3].map((round) => (
                 <div
                   key={round}
-                  className={`h-2 w-8 rounded-full ${
+                  className={`h-2 w-8 rounded-full transition-all ${
                     round <= currentRound
                       ? 'bg-gradient-to-r from-nebula-purple to-nebula-pink'
                       : 'bg-muted/30'
@@ -259,11 +333,26 @@ export const GuessTheFriendGame = ({ friends }: GuessTheFriendGameProps) => {
             </div>
           </div>
 
+          {/* Индикатор загрузки */}
+          {isLoading && (
+            <div className="flex items-center justify-center gap-2 py-8">
+              <Loader2 className="w-5 h-5 animate-spin text-accent" />
+              <span className="text-muted-foreground">Загрузка артиста...</span>
+            </div>
+          )}
+
+          {/* Сообщение об ошибке */}
+          {loadingError && !isLoading && (
+            <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
+              <p className="text-sm text-red-200">{loadingError}</p>
+            </div>
+          )}
+
           {/* Текущий вопрос об артисте */}
-          {getCurrentRound() && (
+          {getCurrentRound() && !isLoading && (
             <div className="text-center">
               <p className="text-sm text-muted-foreground mb-2">
-                Кто больше слушал:
+                {getCurrentRound()!.isUnique ? 'Кто слушает:' : 'Кто больше слушал:'}
               </p>
               <p className="text-3xl font-bold text-gradient-nebula mb-4">
                 {getCurrentRound()!.artist}?
@@ -289,20 +378,39 @@ export const GuessTheFriendGame = ({ friends }: GuessTheFriendGameProps) => {
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 justify-center">
                         <XCircle className="w-5 h-5 text-red-400" />
-                        <span className="text-red-200">Ты плохо знаешь друга!</span>
+                        <span className="text-red-200">Не угадал!</span>
                       </div>
                       <p className="text-sm text-red-200">
-                        {getCurrentRound()!.correctFriend} слушал этого артиста больше всех
+                        {getCurrentRound()!.isUnique 
+                          ? `${getCurrentRound()!.correctFriend} слушает этого артиста`
+                          : `${getCurrentRound()!.correctFriend} слушал этого артиста больше всех`
+                        }
+                        {getCurrentRound()!.playcounts[getCurrentRound()!.correctFriend] > 0 && (
+                          <span className="block mt-1 text-xs opacity-75">
+                            ({getCurrentRound()!.playcounts[getCurrentRound()!.correctFriend]} прослушиваний)
+                          </span>
+                        )}
                       </p>
-                      {/* Показываем ссылку на отписку, если неправильно */}
-                      <a
-                        href={`https://www.last.fm/user/${getCurrentRound()!.correctFriend}/friends`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-red-300 hover:text-red-200 underline block"
-                      >
-                        Отписаться от {getCurrentRound()!.correctFriend} на Last.fm
-                      </a>
+                      {/* Показываем статистику для всех друзей */}
+                      {Object.keys(getCurrentRound()!.playcounts).length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-red-500/20">
+                          <p className="text-xs text-red-300/80 mb-2">Статистика всех друзей:</p>
+                          <div className="space-y-1">
+                            {Object.entries(getCurrentRound()!.playcounts)
+                              .sort(([, a], [, b]) => b - a)
+                              .map(([friendName, playcount]) => (
+                                <div key={friendName} className="flex justify-between text-xs">
+                                  <span className={friendName === getCurrentRound()!.correctFriend ? 'text-red-200 font-medium' : 'text-red-300/60'}>
+                                    {friendName}:
+                                  </span>
+                                  <span className={friendName === getCurrentRound()!.correctFriend ? 'text-red-200 font-medium' : 'text-red-300/60'}>
+                                    {playcount} {playcount === 1 ? 'прослушивание' : playcount < 5 ? 'прослушивания' : 'прослушиваний'}
+                                  </span>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </motion.div>
@@ -312,7 +420,7 @@ export const GuessTheFriendGame = ({ friends }: GuessTheFriendGameProps) => {
               {!getCurrentRound()!.selectedFriend && (
                 <div className="grid grid-cols-2 gap-3">
                   {gameFriends.map((friend) => {
-                    const friendData = friends.find(f => f.name === friend.name);
+                    const friendData = friendsMap.get(friend.name);
                     if (!friendData) return null;
 
                     const avatarUrl = getAvatarUrl(friendData.avatar);
@@ -322,11 +430,12 @@ export const GuessTheFriendGame = ({ friends }: GuessTheFriendGameProps) => {
                       <Button
                         key={friend.id}
                         variant="glass"
-                        className="h-auto py-4"
+                        className="h-auto py-4 transition-all hover:scale-105"
                         onClick={() => handleGameFriendSelect(friend.name)}
+                        disabled={isLoading}
                       >
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-nebula-purple to-nebula-pink flex items-center justify-center text-sm font-bold overflow-hidden">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-nebula-purple to-nebula-pink flex items-center justify-center text-sm font-bold overflow-hidden flex-shrink-0">
                             {avatarUrl ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img 

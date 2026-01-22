@@ -14,6 +14,7 @@ interface LastfmFriend {
   };
   compatibility: number; // Процент совместимости музыкальных вкусов
   topArtist?: string; // Любимый артист друга
+  favoriteGenre?: string; // Любимый жанр друга
 }
 
 interface FriendsState {

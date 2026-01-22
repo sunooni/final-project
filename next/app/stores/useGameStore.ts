@@ -6,6 +6,7 @@ interface GameRound {
   correctFriend: string;
   isCorrect: boolean | null;
   playcounts: Record<string, number>;
+  isUnique?: boolean; // Флаг, указывающий, что артист уникальный (слушает только один друг)
 }
 
 interface GameState {
@@ -21,7 +22,7 @@ interface GameState {
 
   // Действия
   startGame: (friends: Array<{ id: string; name: string; realname?: string }>) => void;
-  setCurrentArtist: (artist: string, correctFriend: string, playcounts: Record<string, number>) => void;
+  setCurrentArtist: (artist: string, correctFriend: string, playcounts: Record<string, number>, isUnique?: boolean) => void;
   selectFriend: (friendName: string) => void;
   nextRound: () => void;
   endGame: () => void;
@@ -54,7 +55,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
-  setCurrentArtist: (artist, correctFriend, playcounts) => {
+  setCurrentArtist: (artist, correctFriend, playcounts, isUnique = false) => {
     const state = get();
     const newRound: GameRound = {
       artist,
@@ -62,6 +63,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       correctFriend,
       isCorrect: null,
       playcounts,
+      isUnique,
     };
 
     set({

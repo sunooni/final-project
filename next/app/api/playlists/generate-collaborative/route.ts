@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     const friendsTracks: Track[] = [];
     for (const friend of friends) {
       try {
-        const friendTracksResponse = await fetch(`${request.url.split('/api')[0]}/api/lastfm/user/friend-loved-tracks?username=${friend}&limit=100`);
+        const friendTracksResponse = await fetch(`${request.url.split('/api')[0]}/api/lastfm/user/friend-loved-tracks?id=${encodeURIComponent(friend)}&limit=100`);
         const friendTracksData = await friendTracksResponse.json();
         const tracks = (friendTracksData.tracks || []).map((track: any) => ({
           ...track,
