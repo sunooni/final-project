@@ -271,7 +271,7 @@ export const EmotionalCalendar = () => {
                   </div>
                   
                   {/* Календарь месяца */}
-                  <div className="flex gap-1">
+                  <div className="flex flex-col gap-1">
                     {monthData.weeks.map((week, weekIndex) => {
                       let displayWeek = week;
                       const monthStart = new Date(monthData.year, monthData.month, 1);
@@ -286,6 +286,10 @@ export const EmotionalCalendar = () => {
                         const firstDayIndex = week.findIndex(day => day.date !== '');
                         if (firstDayIndex > 0) {
                           displayWeek = week.slice(firstDayIndex);
+                          // Добавляем пустые дни в конце, чтобы неделя была полной
+                          while (displayWeek.length < 7) {
+                            displayWeek.push({ date: '', tracks: 0, mood: 'calm', intensity: 0 });
+                          }
                         }
                       }
                       
@@ -317,6 +321,10 @@ export const EmotionalCalendar = () => {
                           }));
                           
                           displayWeek = [...emptyDays, ...monthDays];
+                          // Дополняем до 7 дней, если нужно
+                          while (displayWeek.length < 7) {
+                            displayWeek.push({ date: '', tracks: 0, mood: 'calm', intensity: 0 });
+                          }
                         } else {
                           // Если все дни из предыдущего месяца, добавляем пустые дни в начале
                           const emptyDays: ListeningDay[] = Array(dayOfWeek).fill(null).map(() => ({ 
@@ -327,6 +335,10 @@ export const EmotionalCalendar = () => {
                           }));
                           
                           displayWeek = [...emptyDays, ...week];
+                          // Дополняем до 7 дней, если нужно
+                          while (displayWeek.length < 7) {
+                            displayWeek.push({ date: '', tracks: 0, mood: 'calm', intensity: 0 });
+                          }
                         }
                       }
                       
@@ -340,7 +352,17 @@ export const EmotionalCalendar = () => {
                           const dayTime = dayDate.getTime();
                           return dayTime >= monthStartTime && dayTime <= monthEndTime;
                         });
+                        // Дополняем до 7 дней, если нужно
+                        while (displayWeek.length < 7) {
+                          displayWeek.push({ date: '', tracks: 0, mood: 'calm', intensity: 0 });
+                        }
                       }
+                      
+                      // Убеждаемся, что каждая неделя имеет ровно 7 дней
+                      while (displayWeek.length < 7) {
+                        displayWeek.push({ date: '', tracks: 0, mood: 'calm', intensity: 0 });
+                      }
+                      displayWeek = displayWeek.slice(0, 7); // Ограничиваем максимум 7 днями
                       
                       // Пропускаем пустые недели
                       if (displayWeek.length === 0) {
@@ -348,7 +370,7 @@ export const EmotionalCalendar = () => {
                       }
                       
                       return (
-                        <div key={weekIndex} className="flex flex-col gap-1">
+                        <div key={weekIndex} className="flex gap-1">
                           {displayWeek.map((day, dayIndex) => (
                             <motion.div
                               key={`${monthIndex}-${weekIndex}-${dayIndex}`}
@@ -415,7 +437,7 @@ export const EmotionalCalendar = () => {
                         </div>
                         
                         {/* Календарь месяца */}
-                        <div className="flex gap-1">
+                        <div className="flex flex-col gap-1">
                           {monthData.weeks.map((week, weekIndex) => {
                             let displayWeek = week;
                             const monthStart = new Date(monthData.year, monthData.month, 1);
@@ -452,6 +474,10 @@ export const EmotionalCalendar = () => {
                                 }));
                                 
                                 displayWeek = [...emptyDays, ...monthDays];
+                                // Дополняем до 7 дней, если нужно
+                                while (displayWeek.length < 7) {
+                                  displayWeek.push({ date: '', tracks: 0, mood: 'calm', intensity: 0 });
+                                }
                               } else {
                                 // Если все дни из предыдущего месяца, добавляем пустые дни в начале
                                 const emptyDays: ListeningDay[] = Array(dayOfWeek).fill(null).map(() => ({ 
@@ -462,6 +488,10 @@ export const EmotionalCalendar = () => {
                                 }));
                                 
                                 displayWeek = [...emptyDays, ...week];
+                                // Дополняем до 7 дней, если нужно
+                                while (displayWeek.length < 7) {
+                                  displayWeek.push({ date: '', tracks: 0, mood: 'calm', intensity: 0 });
+                                }
                               }
                             }
                             
@@ -475,7 +505,17 @@ export const EmotionalCalendar = () => {
                                 const dayTime = dayDate.getTime();
                                 return dayTime >= monthStartTime && dayTime <= monthEndTime;
                               });
+                              // Дополняем до 7 дней, если нужно
+                              while (displayWeek.length < 7) {
+                                displayWeek.push({ date: '', tracks: 0, mood: 'calm', intensity: 0 });
+                              }
                             }
+                            
+                            // Убеждаемся, что каждая неделя имеет ровно 7 дней
+                            while (displayWeek.length < 7) {
+                              displayWeek.push({ date: '', tracks: 0, mood: 'calm', intensity: 0 });
+                            }
+                            displayWeek = displayWeek.slice(0, 7); // Ограничиваем максимум 7 днями
                             
                             // Пропускаем пустые недели
                             if (displayWeek.length === 0) {
@@ -483,7 +523,7 @@ export const EmotionalCalendar = () => {
                             }
                             
                             return (
-                              <div key={weekIndex} className="flex flex-col gap-1">
+                              <div key={weekIndex} className="flex gap-1">
                                 {displayWeek.map((day, dayIndex) => (
                                   <motion.div
                                     key={`${globalMonthIndex}-${weekIndex}-${dayIndex}`}

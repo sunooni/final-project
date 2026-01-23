@@ -241,7 +241,7 @@ export const Friends = () => {
                     {/* Анимация воспроизведения */}
                     {recentTrack.nowplaying && (
                       <motion.div 
-                        className="flex justify-center gap-1 py-2"
+                        className="flex justify-center items-end gap-1 py-2 h-6"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                       >
