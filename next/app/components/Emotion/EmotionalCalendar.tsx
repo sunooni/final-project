@@ -246,7 +246,7 @@ export const EmotionalCalendar = () => {
           className="flex-1 glass-card rounded-2xl p-6 overflow-auto"
         >
           <div className="flex flex-col gap-4">
-            {/* Первая строка: первые 6 месяцев */}
+            {/* Первая строка: первые 7 месяцев */}
             <div className="flex gap-2">
               {/* Дни недели - один раз слева */}
               <div className="flex flex-col gap-1 mr-2">
@@ -260,276 +260,93 @@ export const EmotionalCalendar = () => {
 
               {/* Месяцы - горизонтально */}
               <div className="flex gap-6">
-                {calendarData.slice(0, 7).map((monthData, monthIndex) => (
-                <div 
-                  key={`${monthData.year}-${monthData.month}`} 
-                  className="flex flex-col gap-1"
-                >
-                  {/* Название месяца */}
-                  <div className="text-sm font-semibold text-muted-foreground mb-1 h-4 flex items-center">
-                    {months[monthData.month]}
-                  </div>
+                {calendarData.slice(0, 7).map((monthData, monthIndex) => {
+                  // Создаем массив всех дней месяца, выровненных по дням недели
+                  const monthStart = new Date(monthData.year, monthData.month, 1);
+                  monthStart.setHours(0, 0, 0, 0);
+                  const monthStartTime = monthStart.getTime();
+                  const monthEnd = new Date(monthData.year, monthData.month + 1, 0);
+                  monthEnd.setHours(23, 59, 59, 999);
+                  const monthEndTime = monthEnd.getTime();
                   
-                  {/* Календарь месяца */}
-                  <div className="flex flex-col gap-1">
-                    {monthData.weeks.map((week, weekIndex) => {
-                      let displayWeek = week;
-                      const monthStart = new Date(monthData.year, monthData.month, 1);
-                      monthStart.setHours(0, 0, 0, 0);
-                      const monthStartTime = monthStart.getTime();
-                      const monthEnd = new Date(monthData.year, monthData.month + 1, 0);
-                      monthEnd.setHours(23, 59, 59, 999);
-                      const monthEndTime = monthEnd.getTime();
-                      
-                      // Для первого месяца убираем пустые дни в начале первой недели
-                      if (monthIndex === 0 && weekIndex === 0) {
-                        const firstDayIndex = week.findIndex(day => day.date !== '');
-                        if (firstDayIndex > 0) {
-                          displayWeek = week.slice(firstDayIndex);
-                          // Добавляем пустые дни в конце, чтобы неделя была полной
-                          while (displayWeek.length < 7) {
-                            displayWeek.push({ date: '', tracks: 0, mood: 'calm', intensity: 0 });
+                  // Определяем день недели первого дня месяца (понедельник = 0, вторник = 1, ..., воскресенье = 6)
+                  const firstDayDate = new Date(monthStart);
+                  const dayOfWeek = (firstDayDate.getDay() + 6) % 7; // Преобразуем: понедельник = 0
+                  
+                  // Создаем массив дней месяца, сгруппированных по дням недели (колонкам)
+                  const daysByWeekDay: ListeningDay[][] = Array(7).fill(null).map(() => []);
+                  
+                  // Собираем все дни месяца из всех недель
+                  monthData.weeks.forEach((week) => {
+                    week.forEach((day, index) => {
+                      if (day.date) {
+                        const dayDate = new Date(day.date);
+                        dayDate.setHours(0, 0, 0, 0);
+                        const dayTime = dayDate.getTime();
+                        if (dayTime >= monthStartTime && dayTime <= monthEndTime) {
+                          // Определяем день недели для этого дня
+                          const dayWeekDay = (dayDate.getDay() + 6) % 7;
+                          daysByWeekDay[dayWeekDay].push(day);
+                        }
+                      }
+                    });
+                  });
+                  
+                  // Для первого месяца убираем пустые дни в начале первой недели
+                  if (monthIndex === 0) {
+                    const firstDayIndex = monthData.weeks[0]?.findIndex(day => day.date !== '') ?? -1;
+                    if (firstDayIndex > 0 && firstDayIndex < 7) {
+                      // Удаляем дни до первого дня месяца из соответствующих колонок
+                      for (let i = 0; i < firstDayIndex; i++) {
+                        if (daysByWeekDay[i].length > 0) {
+                          const firstDay = daysByWeekDay[i][0];
+                          if (firstDay.date) {
+                            const dayDate = new Date(firstDay.date);
+                            dayDate.setHours(0, 0, 0, 0);
+                            if (dayDate.getTime() < monthStartTime) {
+                              daysByWeekDay[i].shift();
+                            }
                           }
                         }
                       }
+                    }
+                  }
+                  
+                  return (
+                    <div 
+                      key={`${monthData.year}-${monthData.month}`} 
+                      className="flex flex-col gap-1"
+                    >
+                      {/* Название месяца */}
+                      <div className="text-sm font-semibold text-muted-foreground mb-1 h-4 flex items-center">
+                        {months[monthData.month]}
+                      </div>
                       
-                      // Для остальных месяцев: если первая неделя содержит дни предыдущего месяца,
-                      // убираем их и добавляем пустые дни для правильного выравнивания по дням недели
-                      if (monthIndex > 0 && weekIndex === 0) {
-                        // Определяем день недели первого дня месяца (понедельник = 0, вторник = 1, ..., воскресенье = 6)
-                        const firstDayDate = new Date(monthStart);
-                        const dayOfWeek = (firstDayDate.getDay() + 6) % 7; // Преобразуем: понедельник = 0
-                        
-                        // Находим первый день текущего месяца в неделе
-                        const firstDayOfMonthIndex = week.findIndex(day => {
-                          if (!day.date) return false;
-                          const dayDate = new Date(day.date);
-                          dayDate.setHours(0, 0, 0, 0);
-                          return dayDate.getTime() >= monthStartTime;
-                        });
-                        
-                        if (firstDayOfMonthIndex >= 0) {
-                          // Берем дни начиная с первого дня месяца
-                          const monthDays = week.slice(firstDayOfMonthIndex);
+                      {/* Календарь месяца - дни в колонках по дням недели */}
+                      <div className="flex gap-1">
+                        {weekDays.map((_, dayIndex) => {
+                          const dayColumn = daysByWeekDay[dayIndex] || [];
+                          const maxDays = Math.max(...daysByWeekDay.map(col => col.length), 0);
                           
-                          // Добавляем пустые дни в начале для правильного выравнивания по дням недели
-                          const emptyDays: ListeningDay[] = Array(dayOfWeek).fill(null).map(() => ({ 
-                            date: '', 
-                            tracks: 0, 
-                            mood: 'calm', 
-                            intensity: 0 
-                          }));
-                          
-                          displayWeek = [...emptyDays, ...monthDays];
-                          // Дополняем до 7 дней, если нужно
-                          while (displayWeek.length < 7) {
-                            displayWeek.push({ date: '', tracks: 0, mood: 'calm', intensity: 0 });
-                          }
-                        } else {
-                          // Если все дни из предыдущего месяца, добавляем пустые дни в начале
-                          const emptyDays: ListeningDay[] = Array(dayOfWeek).fill(null).map(() => ({ 
-                            date: '', 
-                            tracks: 0, 
-                            mood: 'calm', 
-                            intensity: 0 
-                          }));
-                          
-                          displayWeek = [...emptyDays, ...week];
-                          // Дополняем до 7 дней, если нужно
-                          while (displayWeek.length < 7) {
-                            displayWeek.push({ date: '', tracks: 0, mood: 'calm', intensity: 0 });
-                          }
-                        }
-                      }
-                      
-                      // Для последней недели месяца: фильтруем только дни текущего месяца
-                      const isLastWeek = weekIndex === monthData.weeks.length - 1;
-                      if (isLastWeek) {
-                        displayWeek = displayWeek.filter(day => {
-                          if (!day.date) return true; // Пустые дни оставляем
-                          const dayDate = new Date(day.date);
-                          dayDate.setHours(0, 0, 0, 0);
-                          const dayTime = dayDate.getTime();
-                          return dayTime >= monthStartTime && dayTime <= monthEndTime;
-                        });
-                        // Дополняем до 7 дней, если нужно
-                        while (displayWeek.length < 7) {
-                          displayWeek.push({ date: '', tracks: 0, mood: 'calm', intensity: 0 });
-                        }
-                      }
-                      
-                      // Убеждаемся, что каждая неделя имеет ровно 7 дней
-                      while (displayWeek.length < 7) {
-                        displayWeek.push({ date: '', tracks: 0, mood: 'calm', intensity: 0 });
-                      }
-                      displayWeek = displayWeek.slice(0, 7); // Ограничиваем максимум 7 днями
-                      
-                      // Пропускаем пустые недели
-                      if (displayWeek.length === 0) {
-                        return null;
-                      }
-                      
-                      return (
-                        <div key={weekIndex} className="flex gap-1">
-                          {displayWeek.map((day, dayIndex) => (
-                            <motion.div
-                              key={`${monthIndex}-${weekIndex}-${dayIndex}`}
-                              initial={{ opacity: 0, scale: 0 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              transition={{ delay: (monthIndex * 0.1) + (weekIndex * 0.01) + (dayIndex * 0.005) }}
-                              className={`w-3 h-3 rounded-sm cursor-pointer transition-transform hover:scale-150 ${
-                                day.date && day.tracks > 0 
-                                  ? moodColors[day.mood] 
-                                  : day.date && day.tracks === 0
-                                  ? 'bg-gray-500/20'
-                                  : 'bg-muted/10'
-                              }`}
-                              style={{ 
-                                opacity: day.date && day.tracks > 0 
-                                  ? 0.3 + day.intensity * 0.7 
-                                  : day.date && day.tracks === 0
-                                  ? 0.4
-                                  : 0.2 
-                              }}
-                              title={
-                                day.date && day.tracks > 0 
-                                  ? `${day.date}: ${day.tracks} треков, ${moodLabels[day.mood]}` 
-                                  : day.date && day.tracks === 0
-                                  ? `${day.date}: нет прослушиваний`
-                                  : ''
-                              }
-                            />
-                          ))}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-            </div>
-
-            {/* Вторая строка: оставшиеся месяцы */}
-            {calendarData.length > 7 && (
-              <div className="flex gap-2">
-                {/* Дни недели - один раз слева */}
-                <div className="flex flex-col gap-1 mr-2">
-                  <div className="h-4"></div>
-                  {weekDays.map(day => (
-                    <span key={day} className="text-xs text-muted-foreground h-3 flex items-center">
-                      {day}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Месяцы - горизонтально */}
-                <div className="flex gap-6">
-                  {calendarData.slice(7).map((monthData, monthIndex) => {
-                    const globalMonthIndex = monthIndex + 7;
-                    return (
-                      <div 
-                        key={`${monthData.year}-${monthData.month}`} 
-                        className="flex flex-col gap-1"
-                      >
-                        {/* Название месяца */}
-                        <div className="text-sm font-semibold text-muted-foreground mb-1 h-4 flex items-center">
-                          {months[monthData.month]}
-                        </div>
-                        
-                        {/* Календарь месяца */}
-                        <div className="flex flex-col gap-1">
-                          {monthData.weeks.map((week, weekIndex) => {
-                            let displayWeek = week;
-                            const monthStart = new Date(monthData.year, monthData.month, 1);
-                            monthStart.setHours(0, 0, 0, 0);
-                            const monthStartTime = monthStart.getTime();
-                            const monthEnd = new Date(monthData.year, monthData.month + 1, 0);
-                            monthEnd.setHours(23, 59, 59, 999);
-                            const monthEndTime = monthEnd.getTime();
-                            
-                            // Для первой недели месяца: добавляем пустые дни для правильного выравнивания
-                            if (weekIndex === 0) {
-                              // Определяем день недели первого дня месяца (понедельник = 0, вторник = 1, ..., воскресенье = 6)
-                              const firstDayDate = new Date(monthStart);
-                              const dayOfWeek = (firstDayDate.getDay() + 6) % 7; // Преобразуем: понедельник = 0
-                              
-                              // Находим первый день текущего месяца в неделе
-                              const firstDayOfMonthIndex = week.findIndex(day => {
-                                if (!day.date) return false;
-                                const dayDate = new Date(day.date);
-                                dayDate.setHours(0, 0, 0, 0);
-                                return dayDate.getTime() >= monthStartTime;
-                              });
-                              
-                              if (firstDayOfMonthIndex >= 0) {
-                                // Берем дни начиная с первого дня месяца
-                                const monthDays = week.slice(firstDayOfMonthIndex);
-                                
-                                // Добавляем пустые дни в начале для правильного выравнивания по дням недели
-                                const emptyDays: ListeningDay[] = Array(dayOfWeek).fill(null).map(() => ({ 
-                                  date: '', 
-                                  tracks: 0, 
-                                  mood: 'calm', 
-                                  intensity: 0 
-                                }));
-                                
-                                displayWeek = [...emptyDays, ...monthDays];
-                                // Дополняем до 7 дней, если нужно
-                                while (displayWeek.length < 7) {
-                                  displayWeek.push({ date: '', tracks: 0, mood: 'calm', intensity: 0 });
+                          return (
+                            <div key={dayIndex} className="flex flex-col gap-1">
+                              {Array(maxDays).fill(null).map((_, rowIndex) => {
+                                const day = dayColumn[rowIndex];
+                                if (!day) {
+                                  return (
+                                    <div 
+                                      key={rowIndex} 
+                                      className="w-3 h-3 rounded-sm bg-transparent"
+                                    />
+                                  );
                                 }
-                              } else {
-                                // Если все дни из предыдущего месяца, добавляем пустые дни в начале
-                                const emptyDays: ListeningDay[] = Array(dayOfWeek).fill(null).map(() => ({ 
-                                  date: '', 
-                                  tracks: 0, 
-                                  mood: 'calm', 
-                                  intensity: 0 
-                                }));
                                 
-                                displayWeek = [...emptyDays, ...week];
-                                // Дополняем до 7 дней, если нужно
-                                while (displayWeek.length < 7) {
-                                  displayWeek.push({ date: '', tracks: 0, mood: 'calm', intensity: 0 });
-                                }
-                              }
-                            }
-                            
-                            // Для последней недели месяца: фильтруем только дни текущего месяца
-                            const isLastWeek = weekIndex === monthData.weeks.length - 1;
-                            if (isLastWeek) {
-                              displayWeek = displayWeek.filter(day => {
-                                if (!day.date) return true; // Пустые дни оставляем
-                                const dayDate = new Date(day.date);
-                                dayDate.setHours(0, 0, 0, 0);
-                                const dayTime = dayDate.getTime();
-                                return dayTime >= monthStartTime && dayTime <= monthEndTime;
-                              });
-                              // Дополняем до 7 дней, если нужно
-                              while (displayWeek.length < 7) {
-                                displayWeek.push({ date: '', tracks: 0, mood: 'calm', intensity: 0 });
-                              }
-                            }
-                            
-                            // Убеждаемся, что каждая неделя имеет ровно 7 дней
-                            while (displayWeek.length < 7) {
-                              displayWeek.push({ date: '', tracks: 0, mood: 'calm', intensity: 0 });
-                            }
-                            displayWeek = displayWeek.slice(0, 7); // Ограничиваем максимум 7 днями
-                            
-                            // Пропускаем пустые недели
-                            if (displayWeek.length === 0) {
-                              return null;
-                            }
-                            
-                            return (
-                              <div key={weekIndex} className="flex gap-1">
-                                {displayWeek.map((day, dayIndex) => (
+                                return (
                                   <motion.div
-                                    key={`${globalMonthIndex}-${weekIndex}-${dayIndex}`}
+                                    key={`${monthIndex}-${dayIndex}-${rowIndex}`}
                                     initial={{ opacity: 0, scale: 0 }}
                                     animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ delay: (globalMonthIndex * 0.1) + (weekIndex * 0.01) + (dayIndex * 0.005) }}
+                                    transition={{ delay: (monthIndex * 0.1) + (rowIndex * 0.01) + (dayIndex * 0.005) }}
                                     className={`w-3 h-3 rounded-sm cursor-pointer transition-transform hover:scale-150 ${
                                       day.date && day.tracks > 0 
                                         ? moodColors[day.mood] 
@@ -552,7 +369,126 @@ export const EmotionalCalendar = () => {
                                         : ''
                                     }
                                   />
-                                ))}
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Вторая строка: оставшиеся месяцы */}
+            {calendarData.length > 7 && (
+              <div className="flex gap-2">
+                {/* Дни недели - один раз слева */}
+                <div className="flex flex-col gap-1 mr-2">
+                  <div className="h-4"></div>
+                  {weekDays.map(day => (
+                    <span key={day} className="text-xs text-muted-foreground h-3 flex items-center">
+                      {day}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Месяцы - горизонтально */}
+                <div className="flex gap-6">
+                  {calendarData.slice(7).map((monthData, monthIndex) => {
+                    const globalMonthIndex = monthIndex + 7;
+                    
+                    // Создаем массив всех дней месяца, выровненных по дням недели
+                    const monthStart = new Date(monthData.year, monthData.month, 1);
+                    monthStart.setHours(0, 0, 0, 0);
+                    const monthStartTime = monthStart.getTime();
+                    const monthEnd = new Date(monthData.year, monthData.month + 1, 0);
+                    monthEnd.setHours(23, 59, 59, 999);
+                    const monthEndTime = monthEnd.getTime();
+                    
+                    // Определяем день недели первого дня месяца (понедельник = 0, вторник = 1, ..., воскресенье = 6)
+                    const firstDayDate = new Date(monthStart);
+                    const dayOfWeek = (firstDayDate.getDay() + 6) % 7; // Преобразуем: понедельник = 0
+                    
+                    // Создаем массив дней месяца, сгруппированных по дням недели (колонкам)
+                    const daysByWeekDay: ListeningDay[][] = Array(7).fill(null).map(() => []);
+                    
+                    // Собираем все дни месяца из всех недель
+                    monthData.weeks.forEach((week) => {
+                      week.forEach((day) => {
+                        if (day.date) {
+                          const dayDate = new Date(day.date);
+                          dayDate.setHours(0, 0, 0, 0);
+                          const dayTime = dayDate.getTime();
+                          if (dayTime >= monthStartTime && dayTime <= monthEndTime) {
+                            // Определяем день недели для этого дня
+                            const dayWeekDay = (dayDate.getDay() + 6) % 7;
+                            daysByWeekDay[dayWeekDay].push(day);
+                          }
+                        }
+                      });
+                    });
+                    
+                    return (
+                      <div 
+                        key={`${monthData.year}-${monthData.month}`} 
+                        className="flex flex-col gap-1"
+                      >
+                        {/* Название месяца */}
+                        <div className="text-sm font-semibold text-muted-foreground mb-1 h-4 flex items-center">
+                          {months[monthData.month]}
+                        </div>
+                        
+                        {/* Календарь месяца - дни в колонках по дням недели */}
+                        <div className="flex gap-1">
+                          {weekDays.map((_, dayIndex) => {
+                            const dayColumn = daysByWeekDay[dayIndex] || [];
+                            const maxDays = Math.max(...daysByWeekDay.map(col => col.length), 0);
+                            
+                            return (
+                              <div key={dayIndex} className="flex flex-col gap-1">
+                                {Array(maxDays).fill(null).map((_, rowIndex) => {
+                                  const day = dayColumn[rowIndex];
+                                  if (!day) {
+                                    return (
+                                      <div 
+                                        key={rowIndex} 
+                                        className="w-3 h-3 rounded-sm bg-transparent"
+                                      />
+                                    );
+                                  }
+                                  
+                                  return (
+                                    <motion.div
+                                      key={`${globalMonthIndex}-${dayIndex}-${rowIndex}`}
+                                      initial={{ opacity: 0, scale: 0 }}
+                                      animate={{ opacity: 1, scale: 1 }}
+                                      transition={{ delay: (globalMonthIndex * 0.1) + (rowIndex * 0.01) + (dayIndex * 0.005) }}
+                                      className={`w-3 h-3 rounded-sm cursor-pointer transition-transform hover:scale-150 ${
+                                        day.date && day.tracks > 0 
+                                          ? moodColors[day.mood] 
+                                          : day.date && day.tracks === 0
+                                          ? 'bg-gray-500/20'
+                                          : 'bg-muted/10'
+                                      }`}
+                                      style={{ 
+                                        opacity: day.date && day.tracks > 0 
+                                          ? 0.3 + day.intensity * 0.7 
+                                          : day.date && day.tracks === 0
+                                          ? 0.4
+                                          : 0.2 
+                                      }}
+                                      title={
+                                        day.date && day.tracks > 0 
+                                          ? `${day.date}: ${day.tracks} треков, ${moodLabels[day.mood]}` 
+                                          : day.date && day.tracks === 0
+                                          ? `${day.date}: нет прослушиваний`
+                                          : ''
+                                      }
+                                    />
+                                  );
+                                })}
                               </div>
                             );
                           })}
