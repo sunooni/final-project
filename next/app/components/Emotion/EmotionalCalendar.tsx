@@ -23,6 +23,16 @@ const moodLabels = {
 const months = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 const weekDays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
+interface CalendarDay extends ListeningDay {
+  isEmpty?: boolean;
+}
+
+interface MonthData {
+  month: number;
+  year: number;
+  weeks: CalendarDay[][];
+}
+
 export const EmotionalCalendar = () => {
   const { 
     listeningHistory, 
@@ -49,17 +59,6 @@ export const EmotionalCalendar = () => {
     const startDate = new Date(today);
     startDate.setDate(startDate.getDate() - 365);
 
-    // Фильтруем историю по периоду и создаем Map для быстрого доступа
-    const historyMap = new Map<string, ListeningDay>();
-    listeningHistory.forEach(day => {
-      const dayDate = new Date(day.date);
-      dayDate.setHours(0, 0, 0, 0);
-      // Включаем только дни в пределах периода
-      if (dayDate >= startDate && dayDate <= today) {
-        historyMap.set(day.date, day);
-      }
-    });
-
     // Функция для получения строки даты в формате YYYY-MM-DD в локальном времени
     const getLocalDateString = (date: Date): string => {
       const year = date.getFullYear();
@@ -68,97 +67,88 @@ export const EmotionalCalendar = () => {
       return `${year}-${month}-${day}`;
     };
 
-    // Группируем дни по месяцам
-    interface MonthData {
-      month: number;
-      year: number;
-      weeks: ListeningDay[][];
-    }
+    // Создаем Map для быстрого доступа к данным по дате
+    const historyMap = new Map<string, ListeningDay>();
+    listeningHistory.forEach(day => {
+      const dayDate = new Date(day.date);
+      dayDate.setHours(0, 0, 0, 0);
+      if (dayDate >= startDate && dayDate <= today) {
+        historyMap.set(day.date, day);
+      }
+    });
 
+    // Генерируем календарь для каждого месяца
     const monthsData: MonthData[] = [];
     const startMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
     const endMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    // Генерируем дни по месяцам, сохраняя непрерывность недель между месяцами
-    const currentMonth = new Date(startMonth);
-    let currentWeek: ListeningDay[] = [];
+    let currentMonth = new Date(startMonth);
 
     while (currentMonth <= endMonth) {
-      const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-      const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+      const year = currentMonth.getFullYear();
+      const month = currentMonth.getMonth();
       
-      // Ограничиваем месяц периодом
+      // Определяем первый и последний день месяца
+      const monthStart = new Date(year, month, 1);
+      const monthEnd = new Date(year, month + 1, 0);
+      
+      // Ограничиваем период актуальными датами
       const actualStart = monthStart < startDate ? startDate : monthStart;
       const actualEnd = monthEnd > today ? today : monthEnd;
 
-      const weeks: ListeningDay[][] = [];
+      // Определяем день недели первого отображаемого дня (понедельник = 0, воскресенье = 6)
+      const firstDayOfWeek = (actualStart.getDay() + 6) % 7;
+
+      // Создаем массив всех дней месяца
+      const allDays: CalendarDay[] = [];
+      
+      // Добавляем пустые ячейки в начале для выравнивания по дню недели
+      for (let i = 0; i < firstDayOfWeek; i++) {
+        allDays.push({ date: '', tracks: 0, mood: 'calm', intensity: 0, isEmpty: true });
+      }
+
+      // Добавляем дни месяца
       const currentDate = new Date(actualStart);
-      currentDate.setHours(0, 0, 0, 0);
-      const actualEndTime = actualEnd.getTime();
-      const startDateTime = startDate.getTime();
-      const todayTime = today.getTime();
-
-      // Генерируем дни для текущего месяца
-      while (currentDate.getTime() <= actualEndTime) {
+      while (currentDate <= actualEnd) {
         const dateStr = getLocalDateString(currentDate);
-        const currentDateTime = currentDate.getTime();
-
-        // Если день в пределах периода
-        if (currentDateTime >= startDateTime && currentDateTime <= todayTime) {
-          const dayData = historyMap.get(dateStr);
-          if (dayData) {
-            currentWeek.push(dayData);
-          } else {
-            currentWeek.push({ date: dateStr, tracks: 0, mood: 'calm', intensity: 0.1 });
-          }
+        const dayData = historyMap.get(dateStr);
+        
+        if (dayData) {
+          allDays.push(dayData);
         } else {
-          // Дни вне периода (пустые)
-          currentWeek.push({ date: '', tracks: 0, mood: 'calm', intensity: 0 });
+          // День без данных, но в пределах периода
+          allDays.push({ 
+            date: dateStr, 
+            tracks: 0, 
+            mood: 'calm', 
+            intensity: 0.1 
+          });
         }
-
-        // Если неделя заполнена, сохраняем её
-        if (currentWeek.length === 7) {
-          weeks.push(currentWeek);
-          currentWeek = [];
-        }
-
+        
         currentDate.setDate(currentDate.getDate() + 1);
       }
 
-      // Сохраняем незавершенную неделю для каждого месяца
-      // Фильтруем только дни текущего месяца
-      if (currentWeek.length > 0) {
-        const monthStartTime = monthStart.getTime();
-        const monthEndTime = monthEnd.getTime();
-        
-        // Фильтруем дни, которые принадлежат текущему месяцу
-        const monthDaysOnly = currentWeek.filter(day => {
-          if (!day.date) return false;
-          const dayDate = new Date(day.date);
-          dayDate.setHours(0, 0, 0, 0);
-          const dayTime = dayDate.getTime();
-          return dayTime >= monthStartTime && dayTime <= monthEndTime;
-        });
-        
-        if (monthDaysOnly.length > 0) {
-          weeks.push(monthDaysOnly);
+      // Добавляем пустые ячейки в конце месяца для завершения последней недели
+      const remainingDays = 7 - (allDays.length % 7);
+      if (remainingDays < 7) {
+        for (let i = 0; i < remainingDays; i++) {
+          allDays.push({ date: '', tracks: 0, mood: 'calm', intensity: 0, isEmpty: true });
         }
-        
-        // Сохраняем копию для продолжения в следующем месяце
-        // НЕ очищаем currentWeek - она продолжит следующий месяц
       }
 
-      if (weeks.length > 0) {
-        monthsData.push({
-          month: currentMonth.getMonth(),
-          year: currentMonth.getFullYear(),
-          weeks
-        });
+      // Разбиваем на недели (массивы по 7 дней)
+      const weeks: CalendarDay[][] = [];
+      for (let i = 0; i < allDays.length; i += 7) {
+        weeks.push(allDays.slice(i, i + 7));
       }
+
+      monthsData.push({
+        month,
+        year,
+        weeks
+      });
 
       // Переходим к следующему месяцу
-      // currentWeek уже содержит незавершенную неделю (если была)
-      // При генерации следующего месяца мы продолжим добавлять дни в эту неделю
       currentMonth.setMonth(currentMonth.getMonth() + 1);
     }
 
@@ -212,7 +202,7 @@ export const EmotionalCalendar = () => {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-6 flex items-center justify-between"
+        className="mb-6 flex items-center justify-between flex-wrap gap-4"
       >
         <div>
           <h2 className="text-3xl font-bold text-gradient-nebula mb-2">Эмоциональный Календарь</h2>
@@ -237,7 +227,7 @@ export const EmotionalCalendar = () => {
         </button>
       </motion.div>
 
-      <div className="flex-1 flex gap-8">
+      <div className="flex-1 flex flex-col lg:flex-row gap-8">
         {/* Calendar Grid */}
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
@@ -245,254 +235,78 @@ export const EmotionalCalendar = () => {
           transition={{ delay: 0.2 }}
           className="flex-1 glass-card rounded-2xl p-6 overflow-auto"
         >
-          <div className="flex flex-col gap-4">
-            {/* Первая строка: первые 7 месяцев */}
-            <div className="flex gap-2">
-              {/* Дни недели - один раз слева */}
-              <div className="flex flex-col gap-1 mr-2">
-                <div className="h-4"></div>
-                {weekDays.map(day => (
-                  <span key={day} className="text-xs text-muted-foreground h-3 flex items-center">
-                    {day}
-                  </span>
-                ))}
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {calendarData.map((monthData, monthIndex) => (
+              <div 
+                key={`${monthData.year}-${monthData.month}`}
+                className="flex flex-col"
+              >
+                {/* Заголовок месяца */}
+                <div className="text-sm font-semibold text-muted-foreground mb-2 text-center">
+                  {months[monthData.month]} {monthData.year}
+                </div>
 
-              {/* Месяцы - горизонтально */}
-              <div className="flex gap-6">
-                {calendarData.slice(0, 7).map((monthData, monthIndex) => {
-                  // Создаем массив всех дней месяца, выровненных по дням недели
-                  const monthStart = new Date(monthData.year, monthData.month, 1);
-                  monthStart.setHours(0, 0, 0, 0);
-                  const monthStartTime = monthStart.getTime();
-                  const monthEnd = new Date(monthData.year, monthData.month + 1, 0);
-                  monthEnd.setHours(23, 59, 59, 999);
-                  const monthEndTime = monthEnd.getTime();
-                  
-                  // Создаем массив дней месяца, сгруппированных по дням недели (колонкам)
-                  const daysByWeekDay: ListeningDay[][] = Array(7).fill(null).map(() => []);
-                  
-                  // Собираем все дни месяца из всех недель
-                  monthData.weeks.forEach((week) => {
-                    week.forEach((day) => {
-                      if (day.date) {
-                        const dayDate = new Date(day.date);
-                        dayDate.setHours(0, 0, 0, 0);
-                        const dayTime = dayDate.getTime();
-                        // Проверяем, что день принадлежит текущему месяцу
-                        if (dayTime >= monthStartTime && dayTime <= monthEndTime) {
-                          // Определяем день недели для этого дня (понедельник = 0, воскресенье = 6)
-                          const dayWeekDay = (dayDate.getDay() + 6) % 7;
-                          daysByWeekDay[dayWeekDay].push(day);
-                        }
-                      }
-                    });
-                  });
-                  
-                  // Сортируем дни в каждой колонке по дате (от ранних к поздним)
-                  daysByWeekDay.forEach((column) => {
-                    column.sort((a, b) => {
-                      if (!a.date || !b.date) return 0;
-                      const dateA = new Date(a.date).getTime();
-                      const dateB = new Date(b.date).getTime();
-                      return dateA - dateB;
-                    });
-                  });
-                  
-                  return (
+                {/* Заголовки дней недели */}
+                <div className="grid grid-cols-7 gap-1 mb-1">
+                  {weekDays.map((day) => (
                     <div 
-                      key={`${monthData.year}-${monthData.month}`} 
-                      className="flex flex-col gap-1"
+                      key={day}
+                      className="text-xs text-muted-foreground text-center"
                     >
-                      {/* Название месяца */}
-                      <div className="text-sm font-semibold text-muted-foreground mb-1 h-4 flex items-center">
-                        {months[monthData.month]}
-                      </div>
-                      
-                      {/* Календарь месяца - дни в колонках по дням недели */}
-                      <div className="flex gap-1">
-                        {weekDays.map((_, dayIndex) => {
-                          const dayColumn = daysByWeekDay[dayIndex] || [];
-                          const maxDays = Math.max(...daysByWeekDay.map(col => col.length), 0);
-                          
-                          return (
-                            <div key={dayIndex} className="flex flex-col gap-1">
-                              {Array(maxDays).fill(null).map((_, rowIndex) => {
-                                const day = dayColumn[rowIndex];
-                                if (!day) {
-                                  return (
-                                    <div 
-                                      key={rowIndex} 
-                                      className="w-3 h-3 rounded-sm bg-transparent"
-                                    />
-                                  );
-                                }
-                                
-                                return (
-                                  <motion.div
-                                    key={`${monthIndex}-${dayIndex}-${rowIndex}`}
-                                    initial={{ opacity: 0, scale: 0 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ delay: (monthIndex * 0.1) + (rowIndex * 0.01) + (dayIndex * 0.005) }}
-                                    className={`w-3 h-3 rounded-sm cursor-pointer transition-transform hover:scale-150 ${
-                                      day.date && day.tracks > 0 
-                                        ? moodColors[day.mood] 
-                                        : day.date && day.tracks === 0
-                                        ? 'bg-gray-500/20'
-                                        : 'bg-muted/10'
-                                    }`}
-                                    style={{ 
-                                      opacity: day.date && day.tracks > 0 
-                                        ? 0.3 + day.intensity * 0.7 
-                                        : day.date && day.tracks === 0
-                                        ? 0.4
-                                        : 0.2 
-                                    }}
-                                    title={
-                                      day.date && day.tracks > 0 
-                                        ? `${day.date}: ${day.tracks} треков, ${moodLabels[day.mood]}` 
-                                        : day.date && day.tracks === 0
-                                        ? `${day.date}: нет прослушиваний`
-                                        : ''
-                                    }
-                                  />
-                                );
-                              })}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Вторая строка: оставшиеся месяцы */}
-            {calendarData.length > 7 && (
-              <div className="flex gap-2">
-                {/* Дни недели - один раз слева */}
-                <div className="flex flex-col gap-1 mr-2">
-                  <div className="h-4"></div>
-                  {weekDays.map(day => (
-                    <span key={day} className="text-xs text-muted-foreground h-3 flex items-center">
                       {day}
-                    </span>
+                    </div>
                   ))}
                 </div>
 
-                {/* Месяцы - горизонтально */}
-                <div className="flex gap-6">
-                  {calendarData.slice(7).map((monthData, monthIndex) => {
-                    const globalMonthIndex = monthIndex + 7;
-                    
-                    // Создаем массив всех дней месяца, выровненных по дням недели
-                    const monthStart = new Date(monthData.year, monthData.month, 1);
-                    monthStart.setHours(0, 0, 0, 0);
-                    const monthStartTime = monthStart.getTime();
-                    const monthEnd = new Date(monthData.year, monthData.month + 1, 0);
-                    monthEnd.setHours(23, 59, 59, 999);
-                    const monthEndTime = monthEnd.getTime();
-                    
-                    // Создаем массив дней месяца, сгруппированных по дням недели (колонкам)
-                    const daysByWeekDay: ListeningDay[][] = Array(7).fill(null).map(() => []);
-                    
-                    // Собираем все дни месяца из всех недель
-                    monthData.weeks.forEach((week) => {
-                      week.forEach((day) => {
-                        if (day.date) {
-                          const dayDate = new Date(day.date);
-                          dayDate.setHours(0, 0, 0, 0);
-                          const dayTime = dayDate.getTime();
-                          // Проверяем, что день принадлежит текущему месяцу
-                          if (dayTime >= monthStartTime && dayTime <= monthEndTime) {
-                            // Определяем день недели для этого дня (понедельник = 0, воскресенье = 6)
-                            const dayWeekDay = (dayDate.getDay() + 6) % 7;
-                            daysByWeekDay[dayWeekDay].push(day);
-                          }
+                {/* Недели месяца */}
+                <div className="flex flex-col gap-1">
+                  {monthData.weeks.map((week, weekIndex) => (
+                    <div 
+                      key={weekIndex}
+                      className="grid grid-cols-7 gap-1"
+                    >
+                      {week.map((day, dayIndex) => {
+                        if (day.isEmpty || !day.date) {
+                          return (
+                            <div 
+                              key={`${monthIndex}-${weekIndex}-${dayIndex}`}
+                              className="w-4 h-4 rounded-sm bg-transparent"
+                            />
+                          );
                         }
-                      });
-                    });
-                    
-                    // Сортируем дни в каждой колонке по дате (от ранних к поздним)
-                    daysByWeekDay.forEach((column) => {
-                      column.sort((a, b) => {
-                        if (!a.date || !b.date) return 0;
-                        const dateA = new Date(a.date).getTime();
-                        const dateB = new Date(b.date).getTime();
-                        return dateA - dateB;
-                      });
-                    });
-                    
-                    return (
-                      <div 
-                        key={`${monthData.year}-${monthData.month}`} 
-                        className="flex flex-col gap-1"
-                      >
-                        {/* Название месяца */}
-                        <div className="text-sm font-semibold text-muted-foreground mb-1 h-4 flex items-center">
-                          {months[monthData.month]}
-                        </div>
-                        
-                        {/* Календарь месяца - дни в колонках по дням недели */}
-                        <div className="flex gap-1">
-                          {weekDays.map((_, dayIndex) => {
-                            const dayColumn = daysByWeekDay[dayIndex] || [];
-                            const maxDays = Math.max(...daysByWeekDay.map(col => col.length), 0);
-                            
-                            return (
-                              <div key={dayIndex} className="flex flex-col gap-1">
-                                {Array(maxDays).fill(null).map((_, rowIndex) => {
-                                  const day = dayColumn[rowIndex];
-                                  if (!day) {
-                                    return (
-                                      <div 
-                                        key={rowIndex} 
-                                        className="w-3 h-3 rounded-sm bg-transparent"
-                                      />
-                                    );
-                                  }
-                                  
-                                  return (
-                                    <motion.div
-                                      key={`${globalMonthIndex}-${dayIndex}-${rowIndex}`}
-                                      initial={{ opacity: 0, scale: 0 }}
-                                      animate={{ opacity: 1, scale: 1 }}
-                                      transition={{ delay: (globalMonthIndex * 0.1) + (rowIndex * 0.01) + (dayIndex * 0.005) }}
-                                      className={`w-3 h-3 rounded-sm cursor-pointer transition-transform hover:scale-150 ${
-                                        day.date && day.tracks > 0 
-                                          ? moodColors[day.mood] 
-                                          : day.date && day.tracks === 0
-                                          ? 'bg-gray-500/20'
-                                          : 'bg-muted/10'
-                                      }`}
-                                      style={{ 
-                                        opacity: day.date && day.tracks > 0 
-                                          ? 0.3 + day.intensity * 0.7 
-                                          : day.date && day.tracks === 0
-                                          ? 0.4
-                                          : 0.2 
-                                      }}
-                                      title={
-                                        day.date && day.tracks > 0 
-                                          ? `${day.date}: ${day.tracks} треков, ${moodLabels[day.mood]}` 
-                                          : day.date && day.tracks === 0
-                                          ? `${day.date}: нет прослушиваний`
-                                          : ''
-                                      }
-                                    />
-                                  );
-                                })}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
+
+                        const hasTracks = day.tracks > 0;
+                        const opacity = hasTracks 
+                          ? 0.3 + day.intensity * 0.7 
+                          : 0.4;
+
+                        return (
+                          <motion.div
+                            key={`${monthIndex}-${weekIndex}-${dayIndex}`}
+                            initial={{ opacity: 0, scale: 0 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ 
+                              delay: (monthIndex * 0.05) + (weekIndex * 0.01) + (dayIndex * 0.001) 
+                            }}
+                            className={`w-4 h-4 rounded-sm cursor-pointer transition-all hover:scale-125 hover:z-10 hover:shadow-lg ${
+                              hasTracks 
+                                ? moodColors[day.mood] 
+                                : 'bg-gray-500/20'
+                            }`}
+                            style={{ opacity }}
+                            title={
+                              hasTracks
+                                ? `${day.date}: ${day.tracks} треков, ${moodLabels[day.mood]}` 
+                                : `${day.date}: нет прослушиваний`
+                            }
+                          />
+                        );
+                      })}
+                    </div>
+                  ))}
                 </div>
               </div>
-            )}
+            ))}
           </div>
         </motion.div>
 
@@ -501,7 +315,7 @@ export const EmotionalCalendar = () => {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.4 }}
-          className="w-64 glass-card rounded-2xl p-6"
+          className="w-full lg:w-64 glass-card rounded-2xl p-6 shrink-0"
         >
           <h3 className="text-lg font-semibold mb-4">Распределение эмоций</h3>
           
@@ -543,14 +357,14 @@ export const EmotionalCalendar = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.6 }}
-        className="mt-4 flex items-center gap-6"
+        className="mt-4 flex items-center gap-6 flex-wrap"
       >
         <span className="text-sm text-muted-foreground">Меньше</span>
         <div className="flex gap-1">
           {[0.2, 0.4, 0.6, 0.8, 1].map((opacity) => (
             <div 
               key={opacity}
-              className="w-3 h-3 rounded-sm bg-emotion-calm"
+              className="w-4 h-4 rounded-sm bg-emotion-calm"
               style={{ opacity }}
             />
           ))}
