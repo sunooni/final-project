@@ -117,9 +117,6 @@ export const FriendsList = ({ onFriendSelect, selectedFriendId }: FriendsListPro
                   
                   <div className="flex-1">
                     <p className="font-medium">{displayName}</p>
-                    {friend.favoriteGenre && (
-                      <p className="text-sm text-muted-foreground mt-0.5">Топ жанр: {friend.favoriteGenre}</p>
-                    )}
                   </div>
                   <div className="text-right">
                     <div className="flex items-center gap-1 text-primary">

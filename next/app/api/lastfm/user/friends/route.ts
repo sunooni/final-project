@@ -1,6 +1,25 @@
 import { NextResponse } from "next/server";
 import { callLastfmApi, getLastfmUsername } from "@/app/lib/lastfm";
-import { getUserGenres, calculateCompatibility } from "@/app/utils/compatibilityCalculator";
+
+/**
+ * Генерирует детерминированное случайное значение совместимости на основе имени друга
+ * Значение всегда будет одинаковым для одного и того же имени друга
+ * @param friendName - Имя друга
+ * @returns Значение совместимости от 30 до 95
+ */
+function generateDeterministicCompatibility(friendName: string): number {
+  // Простая хеш-функция для генерации детерминированного значения
+  let hash = 0;
+  for (let i = 0; i < friendName.length; i++) {
+    const char = friendName.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  
+  // Преобразуем хеш в значение от 30 до 95
+  const normalized = Math.abs(hash) % 66; // 0-65
+  return 30 + normalized; // 30-95
+}
 
 export async function GET() {
   try {
@@ -33,65 +52,32 @@ export async function GET() {
       ? data.friends.user
       : [data.friends.user];
 
-    // Получаем жанры текущего пользователя один раз
-    // Используем loved tracks (как в galaxy), ограничиваем 3 страницами для оптимизации
-    console.log(`Getting genres for user: ${username}`);
-    const userGenres = await getUserGenres(username, 3, false);
+    // Форматируем данные друзей и генерируем случайную совместимость для каждого
+    const formattedFriends = friendsList.map((friend: Record<string, any>) => {
+      const avatarImages = friend.image || [];
+      
+      // Проверяем, есть ли у друга аватар (хотя бы одно изображение с непустым URL)
+      const hasAvatar = Array.isArray(avatarImages) && avatarImages.some(
+        (img: any) => img && img["#text"] && img["#text"].trim() !== ""
+      );
+      
+      // Если есть аватар, совместимость 101%, иначе генерируем детерминированное значение
+      const compatibility = hasAvatar 
+        ? 101 
+        : generateDeterministicCompatibility(friend.name);
 
-    // Форматируем данные друзей и рассчитываем совместимость для каждого
-    const formattedFriends = await Promise.all(
-      friendsList.map(async (friend: Record<string, any>) => {
-        let compatibility = 50; // Значение по умолчанию
-        let favoriteGenre: string | undefined = undefined;
-
-        try {
-          // Получаем жанры друга через публичный API (используем loved tracks, ограничиваем 3 страницами)
-          const friendGenres = await getUserGenres(friend.name, 3, true);
-          
-          // Находим самый популярный жанр (с максимальным весом)
-          if (friendGenres.size > 0) {
-            let maxWeight = 0;
-            let topGenre = "";
-            
-            friendGenres.forEach((weight, genre) => {
-              if (weight > maxWeight) {
-                maxWeight = weight;
-                topGenre = genre;
-              }
-            });
-            
-            // Преобразуем первую букву в заглавную для красивого отображения
-            if (topGenre) {
-              favoriteGenre = topGenre.charAt(0).toUpperCase() + topGenre.slice(1);
-            }
-          }
-          
-          // Рассчитываем совместимость
-          if (userGenres.size > 0 && friendGenres.size > 0) {
-            compatibility = calculateCompatibility(userGenres, friendGenres);
-          } else {
-            // Если не удалось получить жанры, используем значение по умолчанию
-            compatibility = 50;
-          }
-        } catch (error) {
-          console.error(`Error calculating compatibility for ${friend.name}:`, error);
-          // В случае ошибки используем значение по умолчанию
-          compatibility = 50;
-        }
-
-        return {
-          id: friend.name, // Use name as ID
-          name: friend.name,
-          realname: friend.realname || friend.name,
-          avatar: friend.image || [], // Array of images in different sizes
-          url: friend.url,
-          playcount: friend.playcount || "0",
-          registered: friend.registered,
-          compatibility, // Реальная совместимость на основе жанров
-          favoriteGenre, // Любимый жанр друга
-        };
-      })
-    );
+      return {
+        id: friend.name, // Use name as ID
+        name: friend.name,
+        realname: friend.realname || friend.name,
+        avatar: avatarImages, // Array of images in different sizes
+        url: friend.url,
+        playcount: friend.playcount || "0",
+        registered: friend.registered,
+        compatibility, // 101% если есть аватар, иначе детерминированное случайное значение
+        favoriteGenre: undefined, // Убираем favoriteGenre, так как больше не получаем жанры
+      };
+    });
 
     return NextResponse.json({
       success: true,
