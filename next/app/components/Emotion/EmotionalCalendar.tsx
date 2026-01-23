@@ -269,22 +269,19 @@ export const EmotionalCalendar = () => {
                   monthEnd.setHours(23, 59, 59, 999);
                   const monthEndTime = monthEnd.getTime();
                   
-                  // Определяем день недели первого дня месяца (понедельник = 0, вторник = 1, ..., воскресенье = 6)
-                  const firstDayDate = new Date(monthStart);
-                  const dayOfWeek = (firstDayDate.getDay() + 6) % 7; // Преобразуем: понедельник = 0
-                  
                   // Создаем массив дней месяца, сгруппированных по дням недели (колонкам)
                   const daysByWeekDay: ListeningDay[][] = Array(7).fill(null).map(() => []);
                   
                   // Собираем все дни месяца из всех недель
                   monthData.weeks.forEach((week) => {
-                    week.forEach((day, index) => {
+                    week.forEach((day) => {
                       if (day.date) {
                         const dayDate = new Date(day.date);
                         dayDate.setHours(0, 0, 0, 0);
                         const dayTime = dayDate.getTime();
+                        // Проверяем, что день принадлежит текущему месяцу
                         if (dayTime >= monthStartTime && dayTime <= monthEndTime) {
-                          // Определяем день недели для этого дня
+                          // Определяем день недели для этого дня (понедельник = 0, воскресенье = 6)
                           const dayWeekDay = (dayDate.getDay() + 6) % 7;
                           daysByWeekDay[dayWeekDay].push(day);
                         }
@@ -292,25 +289,15 @@ export const EmotionalCalendar = () => {
                     });
                   });
                   
-                  // Для первого месяца убираем пустые дни в начале первой недели
-                  if (monthIndex === 0) {
-                    const firstDayIndex = monthData.weeks[0]?.findIndex(day => day.date !== '') ?? -1;
-                    if (firstDayIndex > 0 && firstDayIndex < 7) {
-                      // Удаляем дни до первого дня месяца из соответствующих колонок
-                      for (let i = 0; i < firstDayIndex; i++) {
-                        if (daysByWeekDay[i].length > 0) {
-                          const firstDay = daysByWeekDay[i][0];
-                          if (firstDay.date) {
-                            const dayDate = new Date(firstDay.date);
-                            dayDate.setHours(0, 0, 0, 0);
-                            if (dayDate.getTime() < monthStartTime) {
-                              daysByWeekDay[i].shift();
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
+                  // Сортируем дни в каждой колонке по дате (от ранних к поздним)
+                  daysByWeekDay.forEach((column) => {
+                    column.sort((a, b) => {
+                      if (!a.date || !b.date) return 0;
+                      const dateA = new Date(a.date).getTime();
+                      const dateB = new Date(b.date).getTime();
+                      return dateA - dateB;
+                    });
+                  });
                   
                   return (
                     <div 
@@ -407,10 +394,6 @@ export const EmotionalCalendar = () => {
                     monthEnd.setHours(23, 59, 59, 999);
                     const monthEndTime = monthEnd.getTime();
                     
-                    // Определяем день недели первого дня месяца (понедельник = 0, вторник = 1, ..., воскресенье = 6)
-                    const firstDayDate = new Date(monthStart);
-                    const dayOfWeek = (firstDayDate.getDay() + 6) % 7; // Преобразуем: понедельник = 0
-                    
                     // Создаем массив дней месяца, сгруппированных по дням недели (колонкам)
                     const daysByWeekDay: ListeningDay[][] = Array(7).fill(null).map(() => []);
                     
@@ -421,12 +404,23 @@ export const EmotionalCalendar = () => {
                           const dayDate = new Date(day.date);
                           dayDate.setHours(0, 0, 0, 0);
                           const dayTime = dayDate.getTime();
+                          // Проверяем, что день принадлежит текущему месяцу
                           if (dayTime >= monthStartTime && dayTime <= monthEndTime) {
-                            // Определяем день недели для этого дня
+                            // Определяем день недели для этого дня (понедельник = 0, воскресенье = 6)
                             const dayWeekDay = (dayDate.getDay() + 6) % 7;
                             daysByWeekDay[dayWeekDay].push(day);
                           }
                         }
+                      });
+                    });
+                    
+                    // Сортируем дни в каждой колонке по дате (от ранних к поздним)
+                    daysByWeekDay.forEach((column) => {
+                      column.sort((a, b) => {
+                        if (!a.date || !b.date) return 0;
+                        const dateA = new Date(a.date).getTime();
+                        const dateB = new Date(b.date).getTime();
+                        return dateA - dateB;
                       });
                     });
                     
