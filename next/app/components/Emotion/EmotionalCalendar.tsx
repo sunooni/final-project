@@ -398,7 +398,7 @@ export const EmotionalCalendar = () => {
       >
         <div>
           <h2 className="text-3xl font-bold text-gradient-nebula mb-2">Эмоциональный Календарь</h2>
-          <p className="text-muted-foreground">2025 год (генерированные данные) + 2026 год (реальные данные)</p>
+          <p className="text-muted-foreground">Здесь вы можете увидеть ваш эмоциональный путь за последний год</p>
         </div>
         <button
           onClick={syncMoodHistory}
