@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
       const timeSinceSync = now - lastSynced;
       
       // Если данные свежие, возвращаем данные из БД без синхронизации
+      
       if (timeSinceSync < SYNC_CACHE_TTL) {
         const dbTracksResult = await recentTracksApi.getUserRecentTracks(
           parseInt(userId),
