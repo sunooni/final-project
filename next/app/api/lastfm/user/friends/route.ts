@@ -63,7 +63,7 @@ export async function GET() {
       
       // Если есть аватар, совместимость 101%, иначе генерируем детерминированное значение
       const compatibility = hasAvatar 
-        ? 101 
+        ? 88 
         : generateDeterministicCompatibility(friend.name);
 
       return {

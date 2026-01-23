@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Users, Heart, AlertCircle } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -25,11 +25,27 @@ interface FriendsListProps {
 export const FriendsList = ({ onFriendSelect, selectedFriendId }: FriendsListProps) => {
   // Друзья из Last.fm
   const { friends, isLoading, error, fetchFriends } = userFriendsStore();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Загружаем друзей при монтировании компонента
   useEffect(() => {
     fetchFriends();
   }, [fetchFriends]);
+
+  // Обработчик обновления списка с минимальной задержкой в 1 секунду
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    
+    try {
+      // Вызываем обновление с принудительным обновлением
+      await fetchFriends(true);
+      
+      // Минимальная задержка 1 секунда для показа спиннера
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Функция для получения URL аватара из массива изображений Last.fm
   const getAvatarUrl = (images: Array<{ "#text": string; size: string }>) => {
@@ -77,7 +93,7 @@ export const FriendsList = ({ onFriendSelect, selectedFriendId }: FriendsListPro
       )}
 
       {/* Отображаем список друзей из Last.fm или сообщение об их отсутствии */}
-      {!isLoading && !error && (
+      {!isLoading && !isRefreshing && !error && (
         <div className="space-y-4">
           {friends.length > 0 ? (
             friends.map((friend, index) => {
@@ -143,11 +159,11 @@ export const FriendsList = ({ onFriendSelect, selectedFriendId }: FriendsListPro
       <Button 
         variant="glass" 
         className="w-full mt-4"
-        onClick={() => fetchFriends()}
-        disabled={isLoading}
+        onClick={handleRefresh}
+        disabled={isLoading || isRefreshing}
       >
         <Users className="w-4 h-4 mr-2" />
-        {isLoading ? "Загрузка..." : "Обновить список"}
+        {(isLoading || isRefreshing) ? "Загрузка..." : "Обновить список"}
       </Button>
     </motion.div>
   );
